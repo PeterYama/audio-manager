@@ -11,22 +11,19 @@ if (-not $isAdmin) {
     if ($PSCommandPath) {
         $target = $PSCommandPath
     } else {
-        # Script was IEX'd — save to temp and relaunch
+        # Script was IEX'd — save to temp and relaunch elevated
         $target = "$env:TEMP\AudioManager_elevated.ps1"
         try {
-            $scriptContent = (Invoke-RestMethod -Uri "https://raw.githubusercontent.com/PeterYama/audio-manager/main/AudioManager.ps1" -UseBasicParsing)
+            $scriptContent = (Invoke-RestMethod -Uri "https://raw.githubusercontent.com/PeterYama/audio-manager/master/AudioManager.ps1" -UseBasicParsing)
             Set-Content -Path $target -Value $scriptContent -Encoding UTF8
         } catch {
-            Write-Error "Could not download script for elevated relaunch. Run as Administrator manually."
+            Write-Host "Could not auto-download for elevation. Please run PowerShell as Administrator and try again." -ForegroundColor Red
+            Start-Sleep -Seconds 4
             exit 1
         }
     }
-    $args = "-ExecutionPolicy Bypass -NonInteractive -File `"$target`""
-    if (Get-Command wt.exe -ErrorAction SilentlyContinue) {
-        Start-Process wt.exe -Verb RunAs -ArgumentList "powershell.exe $args"
-    } else {
-        Start-Process powershell.exe -Verb RunAs -ArgumentList $args
-    }
+    $relaunchArgs = "-ExecutionPolicy Bypass -File `"$target`""
+    Start-Process powershell.exe -Verb RunAs -ArgumentList $relaunchArgs
     exit
 }
 
