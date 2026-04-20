@@ -1,0 +1,38 @@
+name: Compile AudioManager
+
+on:
+  push:
+    branches: [main]
+    paths:
+      - 'src/**'
+      - 'Compile.ps1'
+  workflow_dispatch:
+
+jobs:
+  compile:
+    runs-on: windows-latest
+    permissions:
+      contents: write
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Compile AudioManager.ps1
+        shell: pwsh
+        run: .\Compile.ps1
+
+      - name: Commit compiled output
+        shell: pwsh
+        run: |
+          git config user.name  "github-actions[bot]"
+          git config user.email "github-actions[bot]@users.noreply.github.com"
+          git add AudioManager.ps1
+          $diff = git diff --cached --quiet; $changed = -not $?
+          if ($changed) {
+            git commit -m "ci: compile AudioManager.ps1 [skip ci]"
+            git push
+            Write-Host "Pushed compiled AudioManager.ps1"
+          } else {
+            Write-Host "No changes to commit"
+          }
