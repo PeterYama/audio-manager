@@ -100,7 +100,9 @@ AppendFile "$root\src\scripts\main.ps1"
 # ─── Write output ─────────────────────────────────────────────────────────────
 
 $outPath = Join-Path $root $OutFile
-$output.ToString() | Set-Content -Path $outPath -Encoding UTF8
+# Write UTF-8 WITHOUT BOM — required for iwr | iex to work correctly
+$utf8NoBom = New-Object System.Text.UTF8Encoding $false
+[System.IO.File]::WriteAllText($outPath, $output.ToString(), $utf8NoBom)
 
 Write-Host ""
 Write-Host "Compiled -> $outPath ($([math]::Round((Get-Item $outPath).Length / 1KB, 1)) KB)" -ForegroundColor Green

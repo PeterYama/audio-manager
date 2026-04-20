@@ -83,23 +83,23 @@ function Get-AudioSessions {
 function Get-ProcessIcon {
     param([uint32]$ProcessId)
     $map = @{
-        'chrome'         = '🌐'
-        'firefox'        = '🦊'
-        'msedge'         = '🌐'
-        'spotify'        = '🎵'
-        'discord'        = '💬'
-        'slack'          = '💼'
-        'teams'          = '👥'
-        'zoom'           = '📹'
-        'vlc'            = '🎬'
-        'obs64'          = '🎥'
-        'obs32'          = '🎥'
-        'steam'          = '🎮'
-        'epicgameslauncher' = '🎮'
-        'mpc-hc64'       = '🎬'
-        'foobar2000'     = '🎶'
-        'itunes'         = '🎵'
-        'winamp'         = '🎵'
+        'chrome'            = '[web]'
+        'firefox'           = '[web]'
+        'msedge'            = '[web]'
+        'spotify'           = '[music]'
+        'discord'           = '[chat]'
+        'slack'             = '[chat]'
+        'teams'             = '[meet]'
+        'zoom'              = '[meet]'
+        'vlc'               = '[video]'
+        'obs64'             = '[stream]'
+        'obs32'             = '[stream]'
+        'steam'             = '[game]'
+        'epicgameslauncher' = '[game]'
+        'mpc-hc64'          = '[video]'
+        'foobar2000'        = '[music]'
+        'itunes'            = '[music]'
+        'winamp'            = '[music]'
     }
     try {
         $proc = Get-Process -Id $ProcessId -ErrorAction SilentlyContinue
@@ -108,5 +108,5 @@ function Get-ProcessIcon {
             if ($map.ContainsKey($key)) { return $map[$key] }
         }
     } catch {}
-    return '🔊'
+    return '[audio]'
 }

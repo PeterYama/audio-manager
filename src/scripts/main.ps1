@@ -1,4 +1,4 @@
-# ─── Parse XAML ──────────────────────────────────────────────────────────────
+# Parse XAML
 
 $inputXML = $inputXML -replace 'mc:Ignorable="d"', '' `
                        -replace 'xmlns:d="[^"]*"', '' `
@@ -9,7 +9,7 @@ $inputXML = $inputXML -replace 'mc:Ignorable="d"', '' `
 $reader      = [System.Xml.XmlNodeReader]::new($xaml)
 $sync.Form   = [Windows.Markup.XamlReader]::Load($reader)
 
-# ─── Bind all named controls into $sync ──────────────────────────────────────
+# Bind all named controls into $sync
 
 $xaml.SelectNodes("//*[@Name]") | ForEach-Object {
     $ctrlName = $_.Name
@@ -17,25 +17,24 @@ $xaml.SelectNodes("//*[@Name]") | ForEach-Object {
     if ($ctrl) { $sync[$ctrlName] = $ctrl }
 }
 
-# ─── Version label ───────────────────────────────────────────────────────────
+# Version label
 
 $sync.WPFVersionLabel.Text = "v$($sync.Version)"
 
-# ─── Tab navigation ───────────────────────────────────────────────────────────
+# Tab navigation
 
 foreach ($tabBtn in @('WPFTab1BT','WPFTab2BT','WPFTab3BT','WPFTab4BT')) {
-    $btnName = $tabBtn   # capture for closure
+    $btnName = $tabBtn
     $sync[$btnName].Add_Click({
         Invoke-WPFTab -ClickedTab $btnName
     }.GetNewClosure())
 }
 
-# ─── Master volume slider ─────────────────────────────────────────────────────
+# Master volume slider
 
 $sync.WPFMasterVolumeSlider.Add_ValueChanged({
-    $pct  = [math]::Round($sync.WPFMasterVolumeSlider.Value)
+    $pct = [math]::Round($sync.WPFMasterVolumeSlider.Value)
     $sync.WPFMasterVolumeLabel.Text = "$pct%"
-    # Debounce — only call API when user releases
 })
 
 $sync.WPFMasterVolumeSlider.Add_PreviewMouseLeftButtonUp({
@@ -50,17 +49,17 @@ $sync.WPFMasterMuteButton.Add_Click({
     if ($sync.SelectedOutputId) {
         Invoke-AudioManagerRunspace { Set-DeviceMute -DeviceId $sync.SelectedOutputId -Muted $muted }
     }
-    $sync.WPFMasterMuteButton.Content = if ($muted) { "🔇" } else { "🔊" }
+    $sync.WPFMasterMuteButton.Content = if ($muted) { "[X]" } else { "Mute" }
 })
 
-# ─── Output device list selection ────────────────────────────────────────────
+# Output device list selection
 
 $sync.WPFOutputDeviceList.Add_SelectionChanged({
     $selected = $sync.WPFOutputDeviceList.SelectedItem
     if (-not $selected) {
-        $sync.WPFSetDefaultOutput.IsEnabled    = $false
-        $sync.WPFOutputVolumeSlider.IsEnabled  = $false
-        $sync.WPFOutputMuteButton.IsEnabled    = $false
+        $sync.WPFSetDefaultOutput.IsEnabled   = $false
+        $sync.WPFOutputVolumeSlider.IsEnabled = $false
+        $sync.WPFOutputMuteButton.IsEnabled   = $false
         return
     }
     $sync.SelectedOutputId = $selected.Tag
@@ -71,23 +70,22 @@ $sync.WPFOutputDeviceList.Add_SelectionChanged({
     $dev = $sync.RenderDevices | Where-Object { $_.DeviceId -eq $selected.Tag } | Select-Object -First 1
     if ($dev) {
         $pct = [math]::Round($dev.VolumeScalar * 100)
-        $sync.WPFOutputVolumeSlider.Value  = $pct
-        $sync.WPFOutputVolumeLabel.Text    = "$pct%"
+        $sync.WPFOutputVolumeSlider.Value   = $pct
+        $sync.WPFOutputVolumeLabel.Text     = "$pct%"
         $sync.WPFOutputMuteButton.IsChecked = $dev.IsMuted
-        # Mirror to master header if first device
-        $sync.WPFMasterVolumeSlider.Value  = $pct
-        $sync.WPFMasterVolumeLabel.Text    = "$pct%"
+        $sync.WPFMasterVolumeSlider.Value   = $pct
+        $sync.WPFMasterVolumeLabel.Text     = "$pct%"
         $sync.WPFMasterMuteButton.IsChecked = $dev.IsMuted
-        $sync.WPFMasterMuteButton.Content   = if ($dev.IsMuted) { "🔇" } else { "🔊" }
+        $sync.WPFMasterMuteButton.Content   = if ($dev.IsMuted) { "[X]" } else { "Mute" }
     }
 })
 
 $sync.WPFOutputVolumeSlider.Add_PreviewMouseLeftButtonUp({
     $level = $sync.WPFOutputVolumeSlider.Value / 100.0
     $pct   = [math]::Round($sync.WPFOutputVolumeSlider.Value)
-    $sync.WPFOutputVolumeLabel.Text     = "$pct%"
-    $sync.WPFMasterVolumeSlider.Value   = $pct
-    $sync.WPFMasterVolumeLabel.Text     = "$pct%"
+    $sync.WPFOutputVolumeLabel.Text   = "$pct%"
+    $sync.WPFMasterVolumeSlider.Value = $pct
+    $sync.WPFMasterVolumeLabel.Text   = "$pct%"
     if ($sync.SelectedOutputId) {
         Invoke-AudioManagerRunspace { Set-DeviceVolume -DeviceId $sync.SelectedOutputId -Level $level }
     }
@@ -100,7 +98,7 @@ $sync.WPFOutputMuteButton.Add_Click({
     }
 })
 
-# ─── Input device list selection ─────────────────────────────────────────────
+# Input device list selection
 
 $sync.WPFInputDeviceList.Add_SelectionChanged({
     $selected = $sync.WPFInputDeviceList.SelectedItem
@@ -118,9 +116,9 @@ $sync.WPFInputDeviceList.Add_SelectionChanged({
     $dev = $sync.CaptureDevices | Where-Object { $_.DeviceId -eq $selected.Tag } | Select-Object -First 1
     if ($dev) {
         $pct = [math]::Round($dev.VolumeScalar * 100)
-        $sync.WPFInputVolumeSlider.Value    = $pct
-        $sync.WPFInputVolumeLabel.Text      = "$pct%"
-        $sync.WPFInputMuteButton.IsChecked  = $dev.IsMuted
+        $sync.WPFInputVolumeSlider.Value   = $pct
+        $sync.WPFInputVolumeLabel.Text     = "$pct%"
+        $sync.WPFInputMuteButton.IsChecked = $dev.IsMuted
     }
 })
 
@@ -140,12 +138,12 @@ $sync.WPFInputMuteButton.Add_Click({
     }
 })
 
-# ─── Formats tab device picker change ────────────────────────────────────────
+# Formats tab device picker change
 
 $sync.WPFFormatOutputDevice.Add_SelectionChanged({ Update-OutputFormatDisplay })
 $sync.WPFFormatInputDevice.Add_SelectionChanged({  Update-InputFormatDisplay  })
 
-# ─── Enhancements toggles ─────────────────────────────────────────────────────
+# Enhancements toggles
 
 $sync.WPFOutputEnhancementsToggle.Add_Click({
     $enabled  = $sync.WPFOutputEnhancementsToggle.IsChecked
@@ -155,8 +153,8 @@ $sync.WPFOutputEnhancementsToggle.Add_Click({
     Invoke-AudioManagerRunspace {
         $ok = Set-AudioEnhancement -DeviceId $deviceId -Enabled $enabled
         Invoke-WPFUIThread {
-            $sync.WPFOutputEnhancementsToggle.Content = if ($enabled) { "Enhancements: Enabled" } else { "Enhancements: Disabled" }
-            Set-WPFStatus (if ($ok) { "Output enhancements $(if ($enabled) {'enabled'} else {'disabled'})." } else { "Failed to change enhancements." })
+            $sync.WPFOutputEnhancementsToggle.Content = if ($enabled) { "Enhancements: ON" } else { "Enhancements: OFF" }
+            Set-WPFStatus (if ($ok) { "Output enhancements updated." } else { "Failed to change enhancements." })
         }
     }
 })
@@ -169,29 +167,29 @@ $sync.WPFInputEnhancementsToggle.Add_Click({
     Invoke-AudioManagerRunspace {
         $ok = Set-AudioEnhancement -DeviceId $deviceId -Enabled $enabled
         Invoke-WPFUIThread {
-            $sync.WPFInputEnhancementsToggle.Content = if ($enabled) { "Enhancements: Enabled" } else { "Enhancements: Disabled" }
-            Set-WPFStatus (if ($ok) { "Input enhancements $(if ($enabled) {'enabled'} else {'disabled'})." } else { "Failed to change enhancements." })
+            $sync.WPFInputEnhancementsToggle.Content = if ($enabled) { "Enhancements: ON" } else { "Enhancements: OFF" }
+            Set-WPFStatus (if ($ok) { "Input enhancements updated." } else { "Failed to change enhancements." })
         }
     }
 })
 
-# ─── Profile list selection ───────────────────────────────────────────────────
+# Profile list selection
 
 $sync.WPFProfileList.Add_SelectionChanged({
-    $selected = $sync.WPFProfileList.SelectedItem
+    $selected   = $sync.WPFProfileList.SelectedItem
     $hasProfile = ($selected -and $selected.Tag)
     $sync.WPFRestoreProfile.IsEnabled = $hasProfile
     $sync.WPFDeleteProfile.IsEnabled  = $hasProfile
     if ($hasProfile) {
-        $p = $selected.Tag
+        $p    = $selected.Tag
         $info = "Created: $($p.created)"
         if ($p.defaultOutputDeviceName) { $info += "`nOutput: $($p.defaultOutputDeviceName)" }
-        if ($p.defaultInputDeviceName)  { $info += "`nInput: $($p.defaultInputDeviceName)" }
+        if ($p.defaultInputDeviceName)  { $info += "`nInput:  $($p.defaultInputDeviceName)" }
         $sync.WPFProfileInfo.Text = $info
     }
 })
 
-# ─── Button dispatcher wiring ─────────────────────────────────────────────────
+# Button dispatcher
 
 foreach ($btnName in @(
     'WPFRefreshButton', 'WPFRefreshApps',
@@ -207,16 +205,16 @@ foreach ($btnName in @(
     }
 }
 
-# ─── Initial data load ────────────────────────────────────────────────────────
+# Initial data load
 
 Set-WPFStatus "Loading audio devices..."
 Invoke-WPFRefreshAll
 
-# ─── Show window ─────────────────────────────────────────────────────────────
+# Show window
 
 $sync.Form.ShowDialog() | Out-Null
 
-# ─── Cleanup ─────────────────────────────────────────────────────────────────
+# Cleanup
 
 $sync.RunspacePool.Close()
 $sync.RunspacePool.Dispose()

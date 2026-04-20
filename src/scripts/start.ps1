@@ -1,8 +1,6 @@
-#Requires -Version 5.1
-
 $script:AMVersion = "#{VERSION}#"
 
-# ─── Elevation check ─────────────────────────────────────────────────────────
+# --- Elevation check ---
 
 $principal = [Security.Principal.WindowsPrincipal][Security.Principal.WindowsIdentity]::GetCurrent()
 $isAdmin   = $principal.IsInRole([Security.Principal.WindowsBuiltInRole]::Administrator)
@@ -11,13 +9,13 @@ if (-not $isAdmin) {
     if ($PSCommandPath) {
         $target = $PSCommandPath
     } else {
-        # Script was IEX'd — save to temp and relaunch elevated
+        # Script was IEX'd - save to temp and relaunch elevated
         $target = "$env:TEMP\AudioManager_elevated.ps1"
         try {
             $scriptContent = (Invoke-RestMethod -Uri "https://raw.githubusercontent.com/PeterYama/audio-manager/master/AudioManager.ps1" -UseBasicParsing)
             Set-Content -Path $target -Value $scriptContent -Encoding UTF8
         } catch {
-            Write-Host "Could not auto-download for elevation. Please run PowerShell as Administrator and try again." -ForegroundColor Red
+            Write-Host "Could not auto-download for elevation. Please run PowerShell as Administrator." -ForegroundColor Red
             Start-Sleep -Seconds 4
             exit 1
         }
@@ -27,25 +25,25 @@ if (-not $isAdmin) {
     exit
 }
 
-# ─── Assembly loading ─────────────────────────────────────────────────────────
+# --- Assembly loading ---
 
 Add-Type -AssemblyName PresentationFramework
 Add-Type -AssemblyName PresentationCore
 Add-Type -AssemblyName WindowsBase
 Add-Type -AssemblyName System.Windows.Forms
 
-# ─── Logging ─────────────────────────────────────────────────────────────────
+# --- Logging ---
 
 $logDir = "$env:LOCALAPPDATA\AudioManager\logs"
 if (-not (Test-Path $logDir)) { New-Item -ItemType Directory -Path $logDir -Force | Out-Null }
 Start-Transcript -Path "$logDir\AudioManager_$(Get-Date -Format 'yyyyMMdd_HHmmss').log" -Append -ErrorAction SilentlyContinue
 
-# ─── Profiles directory ───────────────────────────────────────────────────────
+# --- Profiles directory ---
 
 $profilesDir = "$env:APPDATA\AudioManager"
 if (-not (Test-Path $profilesDir)) { New-Item -ItemType Directory -Path $profilesDir -Force | Out-Null }
 
-# ─── Shared synchronized hashtable ───────────────────────────────────────────
+# --- Shared synchronized hashtable ---
 
 $sync = [hashtable]::Synchronized(@{
     Form              = $null
@@ -62,7 +60,7 @@ $sync = [hashtable]::Synchronized(@{
     NullGuid          = [guid]::Empty
 })
 
-# ─── Runspace pool (shared across background jobs) ────────────────────────────
+# --- Runspace pool ---
 
 $sessionState = [System.Management.Automation.Runspaces.InitialSessionState]::CreateDefault()
 $sessionState.Variables.Add(

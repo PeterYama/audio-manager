@@ -1,15 +1,13 @@
-﻿#Requires -Version 5.1
+#Requires -Version 5.1
 # â•”â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•—
 # â•‘           Audio Manager v26.04.20 â€” by PeterYama                â•‘
 # â•‘   iwr -useb https://raw.githubusercontent.com/PeterYama/        â•‘
 # â•‘       audio-manager/main/AudioManager.ps1 | iex                 â•‘
 # â•‘   https://github.com/PeterYama/audio-manager                    â•‘
 # â•šâ•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•
-#Requires -Version 5.1
-
 $script:AMVersion = "26.04.20"
 
-# ─── Elevation check ─────────────────────────────────────────────────────────
+# --- Elevation check ---
 
 $principal = [Security.Principal.WindowsPrincipal][Security.Principal.WindowsIdentity]::GetCurrent()
 $isAdmin   = $principal.IsInRole([Security.Principal.WindowsBuiltInRole]::Administrator)
@@ -18,13 +16,13 @@ if (-not $isAdmin) {
     if ($PSCommandPath) {
         $target = $PSCommandPath
     } else {
-        # Script was IEX'd — save to temp and relaunch elevated
+        # Script was IEX'd - save to temp and relaunch elevated
         $target = "$env:TEMP\AudioManager_elevated.ps1"
         try {
             $scriptContent = (Invoke-RestMethod -Uri "https://raw.githubusercontent.com/PeterYama/audio-manager/master/AudioManager.ps1" -UseBasicParsing)
             Set-Content -Path $target -Value $scriptContent -Encoding UTF8
         } catch {
-            Write-Host "Could not auto-download for elevation. Please run PowerShell as Administrator and try again." -ForegroundColor Red
+            Write-Host "Could not auto-download for elevation. Please run PowerShell as Administrator." -ForegroundColor Red
             Start-Sleep -Seconds 4
             exit 1
         }
@@ -34,25 +32,25 @@ if (-not $isAdmin) {
     exit
 }
 
-# ─── Assembly loading ─────────────────────────────────────────────────────────
+# --- Assembly loading ---
 
 Add-Type -AssemblyName PresentationFramework
 Add-Type -AssemblyName PresentationCore
 Add-Type -AssemblyName WindowsBase
 Add-Type -AssemblyName System.Windows.Forms
 
-# ─── Logging ─────────────────────────────────────────────────────────────────
+# --- Logging ---
 
 $logDir = "$env:LOCALAPPDATA\AudioManager\logs"
 if (-not (Test-Path $logDir)) { New-Item -ItemType Directory -Path $logDir -Force | Out-Null }
 Start-Transcript -Path "$logDir\AudioManager_$(Get-Date -Format 'yyyyMMdd_HHmmss').log" -Append -ErrorAction SilentlyContinue
 
-# ─── Profiles directory ───────────────────────────────────────────────────────
+# --- Profiles directory ---
 
 $profilesDir = "$env:APPDATA\AudioManager"
 if (-not (Test-Path $profilesDir)) { New-Item -ItemType Directory -Path $profilesDir -Force | Out-Null }
 
-# ─── Shared synchronized hashtable ───────────────────────────────────────────
+# --- Shared synchronized hashtable ---
 
 $sync = [hashtable]::Synchronized(@{
     Form              = $null
@@ -69,7 +67,7 @@ $sync = [hashtable]::Synchronized(@{
     NullGuid          = [guid]::Empty
 })
 
-# ─── Runspace pool (shared across background jobs) ────────────────────────────
+# --- Runspace pool ---
 
 $sessionState = [System.Management.Automation.Runspaces.InitialSessionState]::CreateDefault()
 $sessionState.Variables.Add(
@@ -603,23 +601,23 @@ function Get-AudioSessions {
 function Get-ProcessIcon {
     param([uint32]$ProcessId)
     $map = @{
-        'chrome'         = '🌐'
-        'firefox'        = '🦊'
-        'msedge'         = '🌐'
-        'spotify'        = '🎵'
-        'discord'        = '💬'
-        'slack'          = '💼'
-        'teams'          = '👥'
-        'zoom'           = '📹'
-        'vlc'            = '🎬'
-        'obs64'          = '🎥'
-        'obs32'          = '🎥'
-        'steam'          = '🎮'
-        'epicgameslauncher' = '🎮'
-        'mpc-hc64'       = '🎬'
-        'foobar2000'     = '🎶'
-        'itunes'         = '🎵'
-        'winamp'         = '🎵'
+        'chrome'            = '[web]'
+        'firefox'           = '[web]'
+        'msedge'            = '[web]'
+        'spotify'           = '[music]'
+        'discord'           = '[chat]'
+        'slack'             = '[chat]'
+        'teams'             = '[meet]'
+        'zoom'              = '[meet]'
+        'vlc'               = '[video]'
+        'obs64'             = '[stream]'
+        'obs32'             = '[stream]'
+        'steam'             = '[game]'
+        'epicgameslauncher' = '[game]'
+        'mpc-hc64'          = '[video]'
+        'foobar2000'        = '[music]'
+        'itunes'            = '[music]'
+        'winamp'            = '[music]'
     }
     try {
         $proc = Get-Process -Id $ProcessId -ErrorAction SilentlyContinue
@@ -628,7 +626,7 @@ function Get-ProcessIcon {
             if ($map.ContainsKey($key)) { return $map[$key] }
         }
     } catch {}
-    return '🔊'
+    return '[audio]'
 }
 
 
@@ -1384,26 +1382,24 @@ $inputXML = @'
     FontSize="13">
 
     <Window.Resources>
-        <!-- Colors -->
-        <SolidColorBrush x:Key="BgDark"     Color="#1A1A2E"/>
-        <SolidColorBrush x:Key="BgMid"      Color="#16213E"/>
-        <SolidColorBrush x:Key="BgLight"    Color="#0F3460"/>
-        <SolidColorBrush x:Key="Accent"     Color="#E94560"/>
-        <SolidColorBrush x:Key="AccentHover"Color="#FF6B81"/>
-        <SolidColorBrush x:Key="TextPrimary"Color="#E0E0E0"/>
-        <SolidColorBrush x:Key="TextMuted"  Color="#8892B0"/>
-        <SolidColorBrush x:Key="Green"      Color="#43D97B"/>
-        <SolidColorBrush x:Key="CardBg"     Color="#16213E"/>
+        <SolidColorBrush x:Key="BgDark"      Color="#1A1A2E"/>
+        <SolidColorBrush x:Key="BgMid"       Color="#16213E"/>
+        <SolidColorBrush x:Key="BgLight"     Color="#0F3460"/>
+        <SolidColorBrush x:Key="Accent"      Color="#E94560"/>
+        <SolidColorBrush x:Key="AccentHover" Color="#FF6B81"/>
+        <SolidColorBrush x:Key="TextPrimary" Color="#E0E0E0"/>
+        <SolidColorBrush x:Key="TextMuted"   Color="#8892B0"/>
+        <SolidColorBrush x:Key="Green"       Color="#43D97B"/>
 
-        <!-- Base button style -->
+        <!-- Base button -->
         <Style x:Key="BtnBase" TargetType="Button">
-            <Setter Property="Background"   Value="#0F3460"/>
-            <Setter Property="Foreground"   Value="#E0E0E0"/>
-            <Setter Property="BorderBrush"  Value="#E94560"/>
+            <Setter Property="Background"      Value="#0F3460"/>
+            <Setter Property="Foreground"      Value="#E0E0E0"/>
+            <Setter Property="BorderBrush"     Value="#E94560"/>
             <Setter Property="BorderThickness" Value="1"/>
-            <Setter Property="Padding"      Value="14,7"/>
-            <Setter Property="Cursor"       Value="Hand"/>
-            <Setter Property="FontSize"     Value="12"/>
+            <Setter Property="Padding"         Value="14,7"/>
+            <Setter Property="Cursor"          Value="Hand"/>
+            <Setter Property="FontSize"        Value="12"/>
             <Setter Property="Template">
                 <Setter.Value>
                     <ControlTemplate TargetType="Button">
@@ -1431,7 +1427,7 @@ $inputXML = @'
 
         <!-- Accent button -->
         <Style x:Key="BtnAccent" TargetType="Button" BasedOn="{StaticResource BtnBase}">
-            <Setter Property="Background" Value="#E94560"/>
+            <Setter Property="Background"  Value="#E94560"/>
             <Setter Property="BorderBrush" Value="#E94560"/>
             <Style.Triggers>
                 <Trigger Property="IsMouseOver" Value="True">
@@ -1440,7 +1436,7 @@ $inputXML = @'
             </Style.Triggers>
         </Style>
 
-        <!-- Tab navigation toggle button -->
+        <!-- Tab toggle button -->
         <Style x:Key="TabBtn" TargetType="ToggleButton">
             <Setter Property="Background"      Value="Transparent"/>
             <Setter Property="Foreground"      Value="#8892B0"/>
@@ -1460,9 +1456,9 @@ $inputXML = @'
                         </Border>
                         <ControlTemplate.Triggers>
                             <Trigger Property="IsChecked" Value="True">
-                                <Setter Property="Foreground"   Value="#E94560"/>
-                                <Setter Property="BorderBrush"  Value="#E94560"/>
-                                <Setter Property="FontWeight"   Value="SemiBold"/>
+                                <Setter Property="Foreground"  Value="#E94560"/>
+                                <Setter Property="BorderBrush" Value="#E94560"/>
+                                <Setter Property="FontWeight"  Value="SemiBold"/>
                             </Trigger>
                             <Trigger Property="IsMouseOver" Value="True">
                                 <Setter Property="Foreground" Value="#E0E0E0"/>
@@ -1473,10 +1469,10 @@ $inputXML = @'
             </Setter>
         </Style>
 
-        <!-- Slider style -->
+        <!-- Slider -->
         <Style x:Key="AudioSlider" TargetType="Slider">
-            <Setter Property="Minimum"          Value="0"/>
-            <Setter Property="Maximum"          Value="100"/>
+            <Setter Property="Minimum"           Value="0"/>
+            <Setter Property="Maximum"           Value="100"/>
             <Setter Property="VerticalAlignment" Value="Center"/>
             <Setter Property="Template">
                 <Setter.Value>
@@ -1523,7 +1519,7 @@ $inputXML = @'
             </Setter>
         </Style>
 
-        <!-- Mute / toggle button style -->
+        <!-- Mute toggle button -->
         <Style x:Key="MuteBtn" TargetType="ToggleButton">
             <Setter Property="Background"      Value="#0F3460"/>
             <Setter Property="Foreground"      Value="#E0E0E0"/>
@@ -1555,16 +1551,15 @@ $inputXML = @'
             </Setter>
         </Style>
 
-        <!-- Card border style -->
+        <!-- Card -->
         <Style x:Key="Card" TargetType="Border">
-            <Setter Property="Background"       Value="#16213E"/>
-            <Setter Property="BorderBrush"      Value="#2D3561"/>
-            <Setter Property="BorderThickness"  Value="1"/>
-            <Setter Property="CornerRadius"     Value="8"/>
-            <Setter Property="Padding"          Value="16"/>
+            <Setter Property="Background"      Value="#16213E"/>
+            <Setter Property="BorderBrush"     Value="#2D3561"/>
+            <Setter Property="BorderThickness" Value="1"/>
+            <Setter Property="CornerRadius"    Value="8"/>
+            <Setter Property="Padding"         Value="16"/>
         </Style>
 
-        <!-- ListBox style -->
         <Style TargetType="ListBox">
             <Setter Property="Background"      Value="#0F1729"/>
             <Setter Property="Foreground"      Value="#E0E0E0"/>
@@ -1573,8 +1568,8 @@ $inputXML = @'
             <Setter Property="ScrollViewer.HorizontalScrollBarVisibility" Value="Disabled"/>
         </Style>
         <Style TargetType="ListBoxItem">
-            <Setter Property="Padding"  Value="10,8"/>
-            <Setter Property="Cursor"   Value="Hand"/>
+            <Setter Property="Padding" Value="10,8"/>
+            <Setter Property="Cursor"  Value="Hand"/>
             <Style.Triggers>
                 <Trigger Property="IsSelected" Value="True">
                     <Setter Property="Background" Value="#E94560"/>
@@ -1586,7 +1581,6 @@ $inputXML = @'
             </Style.Triggers>
         </Style>
 
-        <!-- ComboBox style -->
         <Style TargetType="ComboBox">
             <Setter Property="Background"      Value="#0F3460"/>
             <Setter Property="Foreground"      Value="#E0E0E0"/>
@@ -1595,7 +1589,6 @@ $inputXML = @'
             <Setter Property="Padding"         Value="8,5"/>
         </Style>
 
-        <!-- TextBox style -->
         <Style TargetType="TextBox">
             <Setter Property="Background"      Value="#0F1729"/>
             <Setter Property="Foreground"      Value="#E0E0E0"/>
@@ -1605,7 +1598,6 @@ $inputXML = @'
             <Setter Property="CaretBrush"      Value="#E94560"/>
         </Style>
 
-        <!-- Section header text -->
         <Style x:Key="SectionHeader" TargetType="TextBlock">
             <Setter Property="FontSize"   Value="14"/>
             <Setter Property="FontWeight" Value="SemiBold"/>
@@ -1613,25 +1605,20 @@ $inputXML = @'
             <Setter Property="Margin"     Value="0,0,0,10"/>
         </Style>
 
-        <!-- Label text -->
         <Style x:Key="Label" TargetType="TextBlock">
             <Setter Property="Foreground" Value="#8892B0"/>
             <Setter Property="FontSize"   Value="11"/>
             <Setter Property="Margin"     Value="0,0,0,4"/>
         </Style>
 
-        <!-- ScrollBar style -->
-        <Style TargetType="ScrollBar">
-            <Setter Property="Background" Value="#16213E"/>
-            <Setter Property="Width"      Value="6"/>
+        <Style TargetType="CheckBox">
+            <Setter Property="Foreground" Value="#E0E0E0"/>
         </Style>
     </Window.Resources>
 
     <DockPanel>
 
-        <!-- ═══════════════════════════════════════════════════════════════════
-             HEADER BAR
-        ════════════════════════════════════════════════════════════════════ -->
+        <!-- HEADER -->
         <Border DockPanel.Dock="Top" Background="#16213E" BorderBrush="#2D3561"
                 BorderThickness="0,0,0,1" Padding="20,12">
             <Grid>
@@ -1641,22 +1628,21 @@ $inputXML = @'
                     <ColumnDefinition Width="Auto"/>
                 </Grid.ColumnDefinitions>
 
-                <!-- Title -->
                 <StackPanel Grid.Column="0" Orientation="Horizontal" VerticalAlignment="Center">
-                    <TextBlock Text="🔊" FontSize="20" Margin="0,0,8,0" VerticalAlignment="Center"/>
+                    <TextBlock Text="[Audio]" FontSize="14" FontWeight="Bold" Foreground="#E94560"
+                               Margin="0,0,8,0" VerticalAlignment="Center"/>
                     <StackPanel VerticalAlignment="Center">
                         <TextBlock Text="Audio Manager" FontSize="16" FontWeight="Bold" Foreground="#E0E0E0"/>
                         <TextBlock x:Name="WPFVersionLabel" Text="v0.0.0" FontSize="10" Foreground="#8892B0"/>
                     </StackPanel>
                 </StackPanel>
 
-                <!-- Master Volume -->
                 <StackPanel Grid.Column="1" Orientation="Horizontal" HorizontalAlignment="Center"
                             VerticalAlignment="Center" Margin="20,0">
                     <TextBlock Text="MASTER" FontSize="10" FontWeight="SemiBold" Foreground="#8892B0"
                                VerticalAlignment="Center" Margin="0,0,10,0"/>
                     <ToggleButton x:Name="WPFMasterMuteButton" Style="{StaticResource MuteBtn}"
-                                  Content="🔇" FontSize="14" Width="36" Margin="0,0,10,0"
+                                  Content="Mute" Width="48" Margin="0,0,10,0"
                                   ToolTip="Mute/Unmute master output"/>
                     <Slider x:Name="WPFMasterVolumeSlider" Style="{StaticResource AudioSlider}"
                             Width="200" VerticalAlignment="Center"/>
@@ -1664,36 +1650,29 @@ $inputXML = @'
                                FontWeight="SemiBold" Width="40" Margin="10,0,0,0" VerticalAlignment="Center"/>
                 </StackPanel>
 
-                <!-- Refresh -->
                 <Button x:Name="WPFRefreshButton" Grid.Column="2" Style="{StaticResource BtnBase}"
-                        Content="↺  Refresh" VerticalAlignment="Center" FontSize="12"/>
+                        Content="Refresh" VerticalAlignment="Center"/>
             </Grid>
         </Border>
 
-        <!-- ═══════════════════════════════════════════════════════════════════
-             TAB NAVIGATION
-        ════════════════════════════════════════════════════════════════════ -->
+        <!-- TAB NAV -->
         <Border DockPanel.Dock="Top" Background="#16213E" BorderBrush="#2D3561"
                 BorderThickness="0,0,0,1">
             <StackPanel Orientation="Horizontal">
-                <ToggleButton x:Name="WPFTab1BT" Style="{StaticResource TabBtn}" Content="🖥  Devices"     IsChecked="True"/>
-                <ToggleButton x:Name="WPFTab2BT" Style="{StaticResource TabBtn}" Content="🎵  Applications"/>
-                <ToggleButton x:Name="WPFTab3BT" Style="{StaticResource TabBtn}" Content="⚙  Formats"/>
-                <ToggleButton x:Name="WPFTab4BT" Style="{StaticResource TabBtn}" Content="💾  Profiles"/>
+                <ToggleButton x:Name="WPFTab1BT" Style="{StaticResource TabBtn}" Content="Devices"      IsChecked="True"/>
+                <ToggleButton x:Name="WPFTab2BT" Style="{StaticResource TabBtn}" Content="Applications"/>
+                <ToggleButton x:Name="WPFTab3BT" Style="{StaticResource TabBtn}" Content="Formats"/>
+                <ToggleButton x:Name="WPFTab4BT" Style="{StaticResource TabBtn}" Content="Profiles"/>
             </StackPanel>
         </Border>
 
-        <!-- ═══════════════════════════════════════════════════════════════════
-             STATUS BAR
-        ════════════════════════════════════════════════════════════════════ -->
+        <!-- STATUS BAR -->
         <Border DockPanel.Dock="Bottom" Background="#16213E" BorderBrush="#2D3561"
                 BorderThickness="0,1,0,0" Padding="16,6">
             <TextBlock x:Name="WPFStatusBar" Text="Ready" Foreground="#8892B0" FontSize="11"/>
         </Border>
 
-        <!-- ═══════════════════════════════════════════════════════════════════
-             TAB CONTENT
-        ════════════════════════════════════════════════════════════════════ -->
+        <!-- TAB CONTENT -->
         <TabControl x:Name="WPFTabControl" Background="Transparent" BorderThickness="0">
             <TabControl.Resources>
                 <Style TargetType="TabItem">
@@ -1701,21 +1680,19 @@ $inputXML = @'
                 </Style>
             </TabControl.Resources>
 
-            <!-- ── TAB 1: DEVICES ────────────────────────────────────────── -->
+            <!-- TAB 1: DEVICES -->
             <TabItem x:Name="WPFTab1" IsSelected="True">
-                <Grid Margin="20" VerticalAlignment="Stretch">
+                <Grid Margin="20">
                     <Grid.ColumnDefinitions>
                         <ColumnDefinition Width="*"/>
                         <ColumnDefinition Width="20"/>
                         <ColumnDefinition Width="*"/>
                     </Grid.ColumnDefinitions>
 
-                    <!-- OUTPUT -->
+                    <!-- Output Devices -->
                     <Border Grid.Column="0" Style="{StaticResource Card}">
                         <DockPanel>
                             <TextBlock DockPanel.Dock="Top" Text="Output Devices" Style="{StaticResource SectionHeader}"/>
-
-                            <!-- Volume + Mute row (docked to bottom) -->
                             <Grid DockPanel.Dock="Bottom" Margin="0,12,0,0">
                                 <Grid.RowDefinitions>
                                     <RowDefinition Height="Auto"/>
@@ -1723,7 +1700,7 @@ $inputXML = @'
                                 </Grid.RowDefinitions>
                                 <Button x:Name="WPFSetDefaultOutput" Grid.Row="0"
                                         Style="{StaticResource BtnAccent}"
-                                        Content="★  Set as Default Output" Margin="0,0,0,12"
+                                        Content="Set as Default Output" Margin="0,0,0,12"
                                         IsEnabled="False"/>
                                 <Grid Grid.Row="1">
                                     <Grid.ColumnDefinitions>
@@ -1737,21 +1714,18 @@ $inputXML = @'
                                                Text="--%" Foreground="#E0E0E0" FontWeight="SemiBold"
                                                Width="40" Margin="10,0" VerticalAlignment="Center"/>
                                     <ToggleButton x:Name="WPFOutputMuteButton" Grid.Column="2"
-                                                  Style="{StaticResource MuteBtn}" Content="🔇"
+                                                  Style="{StaticResource MuteBtn}" Content="Mute"
                                                   IsEnabled="False" ToolTip="Mute output device"/>
                                 </Grid>
                             </Grid>
-
-                            <!-- Device list -->
                             <ListBox x:Name="WPFOutputDeviceList" Margin="0,0,0,12"/>
                         </DockPanel>
                     </Border>
 
-                    <!-- INPUT -->
+                    <!-- Input Devices -->
                     <Border Grid.Column="2" Style="{StaticResource Card}">
                         <DockPanel>
                             <TextBlock DockPanel.Dock="Top" Text="Input Devices" Style="{StaticResource SectionHeader}"/>
-
                             <Grid DockPanel.Dock="Bottom" Margin="0,12,0,0">
                                 <Grid.RowDefinitions>
                                     <RowDefinition Height="Auto"/>
@@ -1759,7 +1733,7 @@ $inputXML = @'
                                 </Grid.RowDefinitions>
                                 <Button x:Name="WPFSetDefaultInput" Grid.Row="0"
                                         Style="{StaticResource BtnAccent}"
-                                        Content="★  Set as Default Input" Margin="0,0,0,12"
+                                        Content="Set as Default Input" Margin="0,0,0,12"
                                         IsEnabled="False"/>
                                 <Grid Grid.Row="1">
                                     <Grid.ColumnDefinitions>
@@ -1773,33 +1747,31 @@ $inputXML = @'
                                                Text="--%" Foreground="#E0E0E0" FontWeight="SemiBold"
                                                Width="40" Margin="10,0" VerticalAlignment="Center"/>
                                     <ToggleButton x:Name="WPFInputMuteButton" Grid.Column="2"
-                                                  Style="{StaticResource MuteBtn}" Content="🎤"
+                                                  Style="{StaticResource MuteBtn}" Content="Mute"
                                                   IsEnabled="False" ToolTip="Mute input device"/>
                                 </Grid>
                             </Grid>
-
                             <ListBox x:Name="WPFInputDeviceList" Margin="0,0,0,12"/>
                         </DockPanel>
                     </Border>
                 </Grid>
             </TabItem>
 
-            <!-- ── TAB 2: APPLICATIONS ───────────────────────────────────── -->
+            <!-- TAB 2: APPLICATIONS -->
             <TabItem x:Name="WPFTab2">
                 <DockPanel Margin="20">
                     <Border DockPanel.Dock="Top" Style="{StaticResource Card}" Margin="0,0,0,16">
                         <StackPanel Orientation="Horizontal">
-                            <TextBlock Text="Per-Application Volume Control" Style="{StaticResource SectionHeader}"
+                            <TextBlock Text="Per-Application Volume" Style="{StaticResource SectionHeader}"
                                        Margin="0" VerticalAlignment="Center"/>
                             <Button x:Name="WPFRefreshApps" Style="{StaticResource BtnBase}"
-                                    Content="↺  Refresh Apps" Margin="16,0,0,0" VerticalAlignment="Center"/>
+                                    Content="Refresh Apps" Margin="16,0,0,0" VerticalAlignment="Center"/>
                             <TextBlock x:Name="WPFAppCount" Text="" Foreground="#8892B0" FontSize="11"
                                        Margin="12,0,0,0" VerticalAlignment="Center"/>
                         </StackPanel>
                     </Border>
-
                     <ScrollViewer VerticalScrollBarVisibility="Auto" HorizontalScrollBarVisibility="Disabled">
-                        <ItemsControl x:Name="WPFAppSessionList" Margin="0">
+                        <ItemsControl x:Name="WPFAppSessionList">
                             <ItemsControl.ItemTemplate>
                                 <DataTemplate>
                                     <Border Style="{StaticResource Card}" Margin="0,0,0,8">
@@ -1811,8 +1783,7 @@ $inputXML = @'
                                                 <ColumnDefinition Width="50"/>
                                                 <ColumnDefinition Width="70"/>
                                             </Grid.ColumnDefinitions>
-
-                                            <TextBlock Grid.Column="0" Text="{Binding Icon}" FontSize="20"
+                                            <TextBlock Grid.Column="0" Text="{Binding Icon}" FontSize="16"
                                                        VerticalAlignment="Center" HorizontalAlignment="Center"/>
                                             <StackPanel Grid.Column="1" VerticalAlignment="Center" Margin="8,0">
                                                 <TextBlock Text="{Binding Name}" FontWeight="SemiBold"
@@ -1826,7 +1797,7 @@ $inputXML = @'
                                                        Foreground="#E0E0E0" FontWeight="SemiBold"
                                                        VerticalAlignment="Center" HorizontalAlignment="Center"/>
                                             <ToggleButton Grid.Column="4" IsChecked="{Binding IsMuted, Mode=TwoWay}"
-                                                          Style="{StaticResource MuteBtn}" Content="🔇"
+                                                          Style="{StaticResource MuteBtn}" Content="Mute"
                                                           Tag="{Binding SessionKey}" VerticalAlignment="Center"/>
                                         </Grid>
                                     </Border>
@@ -1837,7 +1808,7 @@ $inputXML = @'
                 </DockPanel>
             </TabItem>
 
-            <!-- ── TAB 3: FORMATS ────────────────────────────────────────── -->
+            <!-- TAB 3: FORMATS -->
             <TabItem x:Name="WPFTab3">
                 <Grid Margin="20">
                     <Grid.ColumnDefinitions>
@@ -1846,67 +1817,57 @@ $inputXML = @'
                         <ColumnDefinition Width="*"/>
                     </Grid.ColumnDefinitions>
 
-                    <!-- OUTPUT FORMAT -->
+                    <!-- Output Format -->
                     <Border Grid.Column="0" Style="{StaticResource Card}">
                         <StackPanel>
                             <TextBlock Text="Output Format" Style="{StaticResource SectionHeader}"/>
-
                             <TextBlock Text="Device" Style="{StaticResource Label}"/>
                             <ComboBox x:Name="WPFFormatOutputDevice" Margin="0,0,0,12"/>
-
                             <TextBlock Text="Current Format" Style="{StaticResource Label}"/>
                             <Border Background="#0F1729" BorderBrush="#2D3561" BorderThickness="1"
                                     CornerRadius="4" Padding="8,6" Margin="0,0,0,16">
-                                <TextBlock x:Name="WPFCurrentOutputFormat" Text="—"
+                                <TextBlock x:Name="WPFCurrentOutputFormat" Text="--"
                                            Foreground="#43D97B" FontFamily="Consolas" FontSize="12"/>
                             </Border>
-
                             <TextBlock Text="Sample Rate (Hz)" Style="{StaticResource Label}"/>
                             <ComboBox x:Name="WPFOutputSampleRate" Margin="0,0,0,12">
-                                <ComboBoxItem Content="44100" Tag="44100"/>
-                                <ComboBoxItem Content="48000" Tag="48000" IsSelected="True"/>
-                                <ComboBoxItem Content="88200" Tag="88200"/>
-                                <ComboBoxItem Content="96000" Tag="96000"/>
+                                <ComboBoxItem Content="44100"  Tag="44100"/>
+                                <ComboBoxItem Content="48000"  Tag="48000" IsSelected="True"/>
+                                <ComboBoxItem Content="88200"  Tag="88200"/>
+                                <ComboBoxItem Content="96000"  Tag="96000"/>
                                 <ComboBoxItem Content="176400" Tag="176400"/>
                                 <ComboBoxItem Content="192000" Tag="192000"/>
                             </ComboBox>
-
                             <TextBlock Text="Bit Depth" Style="{StaticResource Label}"/>
                             <ComboBox x:Name="WPFOutputBitDepth" Margin="0,0,0,16">
-                                <ComboBoxItem Content="16-bit" Tag="16"/>
-                                <ComboBoxItem Content="24-bit" Tag="24" IsSelected="True"/>
+                                <ComboBoxItem Content="16-bit"        Tag="16"/>
+                                <ComboBoxItem Content="24-bit"        Tag="24" IsSelected="True"/>
                                 <ComboBoxItem Content="32-bit (float)" Tag="32"/>
                             </ComboBox>
-
                             <Button x:Name="WPFApplyOutputFormat" Style="{StaticResource BtnAccent}"
                                     Content="Apply Output Format" Margin="0,0,0,20" IsEnabled="False"/>
-
                             <Separator Background="#2D3561" Margin="0,0,0,16"/>
-
                             <TextBlock Text="Audio Enhancements" Style="{StaticResource SectionHeader}"/>
-                            <TextBlock Text="Disable system-level audio enhancements for this device."
+                            <TextBlock Text="Toggle system audio enhancements for this device."
                                        Style="{StaticResource Label}" TextWrapping="Wrap" Margin="0,0,0,10"/>
                             <ToggleButton x:Name="WPFOutputEnhancementsToggle" Style="{StaticResource MuteBtn}"
-                                          Content="Enhancements: Enabled" MinWidth="180" IsEnabled="False"
+                                          Content="Enhancements: ON" MinWidth="180" IsEnabled="False"
                                           HorizontalAlignment="Left"/>
                         </StackPanel>
                     </Border>
 
-                    <!-- INPUT FORMAT -->
+                    <!-- Input Format -->
                     <Border Grid.Column="2" Style="{StaticResource Card}">
                         <StackPanel>
                             <TextBlock Text="Input Format" Style="{StaticResource SectionHeader}"/>
-
                             <TextBlock Text="Device" Style="{StaticResource Label}"/>
                             <ComboBox x:Name="WPFFormatInputDevice" Margin="0,0,0,12"/>
-
                             <TextBlock Text="Current Format" Style="{StaticResource Label}"/>
                             <Border Background="#0F1729" BorderBrush="#2D3561" BorderThickness="1"
                                     CornerRadius="4" Padding="8,6" Margin="0,0,0,16">
-                                <TextBlock x:Name="WPFCurrentInputFormat" Text="—"
+                                <TextBlock x:Name="WPFCurrentInputFormat" Text="--"
                                            Foreground="#43D97B" FontFamily="Consolas" FontSize="12"/>
                             </Border>
-
                             <TextBlock Text="Sample Rate (Hz)" Style="{StaticResource Label}"/>
                             <ComboBox x:Name="WPFInputSampleRate" Margin="0,0,0,12">
                                 <ComboBoxItem Content="8000"  Tag="8000"/>
@@ -1915,31 +1876,27 @@ $inputXML = @'
                                 <ComboBoxItem Content="48000" Tag="48000" IsSelected="True"/>
                                 <ComboBoxItem Content="96000" Tag="96000"/>
                             </ComboBox>
-
                             <TextBlock Text="Bit Depth" Style="{StaticResource Label}"/>
                             <ComboBox x:Name="WPFInputBitDepth" Margin="0,0,0,16">
-                                <ComboBoxItem Content="16-bit" Tag="16" IsSelected="True"/>
-                                <ComboBoxItem Content="24-bit" Tag="24"/>
+                                <ComboBoxItem Content="16-bit"         Tag="16" IsSelected="True"/>
+                                <ComboBoxItem Content="24-bit"         Tag="24"/>
                                 <ComboBoxItem Content="32-bit (float)" Tag="32"/>
                             </ComboBox>
-
                             <Button x:Name="WPFApplyInputFormat" Style="{StaticResource BtnAccent}"
                                     Content="Apply Input Format" Margin="0,0,0,20" IsEnabled="False"/>
-
                             <Separator Background="#2D3561" Margin="0,0,0,16"/>
-
                             <TextBlock Text="Audio Enhancements" Style="{StaticResource SectionHeader}"/>
-                            <TextBlock Text="Disable system-level audio enhancements for this device."
+                            <TextBlock Text="Toggle system audio enhancements for this device."
                                        Style="{StaticResource Label}" TextWrapping="Wrap" Margin="0,0,0,10"/>
                             <ToggleButton x:Name="WPFInputEnhancementsToggle" Style="{StaticResource MuteBtn}"
-                                          Content="Enhancements: Enabled" MinWidth="180" IsEnabled="False"
+                                          Content="Enhancements: ON" MinWidth="180" IsEnabled="False"
                                           HorizontalAlignment="Left"/>
                         </StackPanel>
                     </Border>
                 </Grid>
             </TabItem>
 
-            <!-- ── TAB 4: PROFILES ───────────────────────────────────────── -->
+            <!-- TAB 4: PROFILES -->
             <TabItem x:Name="WPFTab4">
                 <Grid Margin="20">
                     <Grid.ColumnDefinitions>
@@ -1948,46 +1905,41 @@ $inputXML = @'
                         <ColumnDefinition Width="*"/>
                     </Grid.ColumnDefinitions>
 
-                    <!-- Saved profiles -->
+                    <!-- Saved Profiles -->
                     <Border Grid.Column="0" Style="{StaticResource Card}">
                         <DockPanel>
                             <TextBlock DockPanel.Dock="Top" Text="Saved Profiles" Style="{StaticResource SectionHeader}"/>
                             <StackPanel DockPanel.Dock="Bottom" Orientation="Horizontal" Margin="0,12,0,0">
                                 <Button x:Name="WPFRestoreProfile" Style="{StaticResource BtnAccent}"
-                                        Content="▶  Restore" IsEnabled="False" Margin="0,0,8,0"/>
+                                        Content="Restore" IsEnabled="False" Margin="0,0,8,0"/>
                                 <Button x:Name="WPFDeleteProfile" Style="{StaticResource BtnBase}"
-                                        Content="🗑  Delete" IsEnabled="False"/>
+                                        Content="Delete" IsEnabled="False"/>
                             </StackPanel>
                             <TextBlock DockPanel.Dock="Bottom" x:Name="WPFProfileInfo" Text=""
-                                       Foreground="#8892B0" FontSize="11" Margin="0,8,0,0"
-                                       TextWrapping="Wrap"/>
+                                       Foreground="#8892B0" FontSize="11" Margin="0,8,0,0" TextWrapping="Wrap"/>
                             <ListBox x:Name="WPFProfileList"/>
                         </DockPanel>
                     </Border>
 
-                    <!-- Save profile -->
+                    <!-- Save Profile -->
                     <Border Grid.Column="2" Style="{StaticResource Card}">
                         <StackPanel>
                             <TextBlock Text="Save Current State" Style="{StaticResource SectionHeader}"/>
-
                             <TextBlock Text="Profile Name" Style="{StaticResource Label}"/>
-                            <TextBox x:Name="WPFProfileNameInput" Margin="0,0,0,16"
-                                     xml:space="preserve"/>
-
+                            <TextBox x:Name="WPFProfileNameInput" Margin="0,0,0,16"/>
                             <TextBlock Text="Capture" Style="{StaticResource Label}"/>
-                            <CheckBox x:Name="WPFProfileSaveOutputDevice"  Content="Default Output Device"
-                                      IsChecked="True" Foreground="#E0E0E0" Margin="0,4"/>
-                            <CheckBox x:Name="WPFProfileSaveInputDevice"   Content="Default Input Device"
-                                      IsChecked="True" Foreground="#E0E0E0" Margin="0,4"/>
-                            <CheckBox x:Name="WPFProfileSaveOutputVolume"  Content="Output Volume &amp; Mute"
-                                      IsChecked="True" Foreground="#E0E0E0" Margin="0,4"/>
-                            <CheckBox x:Name="WPFProfileSaveInputVolume"   Content="Input Volume &amp; Mute"
-                                      IsChecked="True" Foreground="#E0E0E0" Margin="0,4"/>
-                            <CheckBox x:Name="WPFProfileSaveAppVolumes"    Content="Per-App Volumes"
-                                      IsChecked="True" Foreground="#E0E0E0" Margin="0,4,0,16"/>
-
+                            <CheckBox x:Name="WPFProfileSaveOutputDevice" Content="Default Output Device"
+                                      IsChecked="True" Margin="0,4"/>
+                            <CheckBox x:Name="WPFProfileSaveInputDevice"  Content="Default Input Device"
+                                      IsChecked="True" Margin="0,4"/>
+                            <CheckBox x:Name="WPFProfileSaveOutputVolume" Content="Output Volume and Mute"
+                                      IsChecked="True" Margin="0,4"/>
+                            <CheckBox x:Name="WPFProfileSaveInputVolume"  Content="Input Volume and Mute"
+                                      IsChecked="True" Margin="0,4"/>
+                            <CheckBox x:Name="WPFProfileSaveAppVolumes"   Content="Per-App Volumes"
+                                      IsChecked="True" Margin="0,4,0,16"/>
                             <Button x:Name="WPFSaveProfile" Style="{StaticResource BtnAccent}"
-                                    Content="💾  Save Profile"/>
+                                    Content="Save Profile"/>
                         </StackPanel>
                     </Border>
                 </Grid>
@@ -1999,7 +1951,7 @@ $inputXML = @'
 
 '@
 
-# ─── Parse XAML ──────────────────────────────────────────────────────────────
+# Parse XAML
 
 $inputXML = $inputXML -replace 'mc:Ignorable="d"', '' `
                        -replace 'xmlns:d="[^"]*"', '' `
@@ -2010,7 +1962,7 @@ $inputXML = $inputXML -replace 'mc:Ignorable="d"', '' `
 $reader      = [System.Xml.XmlNodeReader]::new($xaml)
 $sync.Form   = [Windows.Markup.XamlReader]::Load($reader)
 
-# ─── Bind all named controls into $sync ──────────────────────────────────────
+# Bind all named controls into $sync
 
 $xaml.SelectNodes("//*[@Name]") | ForEach-Object {
     $ctrlName = $_.Name
@@ -2018,25 +1970,24 @@ $xaml.SelectNodes("//*[@Name]") | ForEach-Object {
     if ($ctrl) { $sync[$ctrlName] = $ctrl }
 }
 
-# ─── Version label ───────────────────────────────────────────────────────────
+# Version label
 
 $sync.WPFVersionLabel.Text = "v$($sync.Version)"
 
-# ─── Tab navigation ───────────────────────────────────────────────────────────
+# Tab navigation
 
 foreach ($tabBtn in @('WPFTab1BT','WPFTab2BT','WPFTab3BT','WPFTab4BT')) {
-    $btnName = $tabBtn   # capture for closure
+    $btnName = $tabBtn
     $sync[$btnName].Add_Click({
         Invoke-WPFTab -ClickedTab $btnName
     }.GetNewClosure())
 }
 
-# ─── Master volume slider ─────────────────────────────────────────────────────
+# Master volume slider
 
 $sync.WPFMasterVolumeSlider.Add_ValueChanged({
-    $pct  = [math]::Round($sync.WPFMasterVolumeSlider.Value)
+    $pct = [math]::Round($sync.WPFMasterVolumeSlider.Value)
     $sync.WPFMasterVolumeLabel.Text = "$pct%"
-    # Debounce — only call API when user releases
 })
 
 $sync.WPFMasterVolumeSlider.Add_PreviewMouseLeftButtonUp({
@@ -2051,17 +2002,17 @@ $sync.WPFMasterMuteButton.Add_Click({
     if ($sync.SelectedOutputId) {
         Invoke-AudioManagerRunspace { Set-DeviceMute -DeviceId $sync.SelectedOutputId -Muted $muted }
     }
-    $sync.WPFMasterMuteButton.Content = if ($muted) { "🔇" } else { "🔊" }
+    $sync.WPFMasterMuteButton.Content = if ($muted) { "[X]" } else { "Mute" }
 })
 
-# ─── Output device list selection ────────────────────────────────────────────
+# Output device list selection
 
 $sync.WPFOutputDeviceList.Add_SelectionChanged({
     $selected = $sync.WPFOutputDeviceList.SelectedItem
     if (-not $selected) {
-        $sync.WPFSetDefaultOutput.IsEnabled    = $false
-        $sync.WPFOutputVolumeSlider.IsEnabled  = $false
-        $sync.WPFOutputMuteButton.IsEnabled    = $false
+        $sync.WPFSetDefaultOutput.IsEnabled   = $false
+        $sync.WPFOutputVolumeSlider.IsEnabled = $false
+        $sync.WPFOutputMuteButton.IsEnabled   = $false
         return
     }
     $sync.SelectedOutputId = $selected.Tag
@@ -2072,23 +2023,22 @@ $sync.WPFOutputDeviceList.Add_SelectionChanged({
     $dev = $sync.RenderDevices | Where-Object { $_.DeviceId -eq $selected.Tag } | Select-Object -First 1
     if ($dev) {
         $pct = [math]::Round($dev.VolumeScalar * 100)
-        $sync.WPFOutputVolumeSlider.Value  = $pct
-        $sync.WPFOutputVolumeLabel.Text    = "$pct%"
+        $sync.WPFOutputVolumeSlider.Value   = $pct
+        $sync.WPFOutputVolumeLabel.Text     = "$pct%"
         $sync.WPFOutputMuteButton.IsChecked = $dev.IsMuted
-        # Mirror to master header if first device
-        $sync.WPFMasterVolumeSlider.Value  = $pct
-        $sync.WPFMasterVolumeLabel.Text    = "$pct%"
+        $sync.WPFMasterVolumeSlider.Value   = $pct
+        $sync.WPFMasterVolumeLabel.Text     = "$pct%"
         $sync.WPFMasterMuteButton.IsChecked = $dev.IsMuted
-        $sync.WPFMasterMuteButton.Content   = if ($dev.IsMuted) { "🔇" } else { "🔊" }
+        $sync.WPFMasterMuteButton.Content   = if ($dev.IsMuted) { "[X]" } else { "Mute" }
     }
 })
 
 $sync.WPFOutputVolumeSlider.Add_PreviewMouseLeftButtonUp({
     $level = $sync.WPFOutputVolumeSlider.Value / 100.0
     $pct   = [math]::Round($sync.WPFOutputVolumeSlider.Value)
-    $sync.WPFOutputVolumeLabel.Text     = "$pct%"
-    $sync.WPFMasterVolumeSlider.Value   = $pct
-    $sync.WPFMasterVolumeLabel.Text     = "$pct%"
+    $sync.WPFOutputVolumeLabel.Text   = "$pct%"
+    $sync.WPFMasterVolumeSlider.Value = $pct
+    $sync.WPFMasterVolumeLabel.Text   = "$pct%"
     if ($sync.SelectedOutputId) {
         Invoke-AudioManagerRunspace { Set-DeviceVolume -DeviceId $sync.SelectedOutputId -Level $level }
     }
@@ -2101,7 +2051,7 @@ $sync.WPFOutputMuteButton.Add_Click({
     }
 })
 
-# ─── Input device list selection ─────────────────────────────────────────────
+# Input device list selection
 
 $sync.WPFInputDeviceList.Add_SelectionChanged({
     $selected = $sync.WPFInputDeviceList.SelectedItem
@@ -2119,9 +2069,9 @@ $sync.WPFInputDeviceList.Add_SelectionChanged({
     $dev = $sync.CaptureDevices | Where-Object { $_.DeviceId -eq $selected.Tag } | Select-Object -First 1
     if ($dev) {
         $pct = [math]::Round($dev.VolumeScalar * 100)
-        $sync.WPFInputVolumeSlider.Value    = $pct
-        $sync.WPFInputVolumeLabel.Text      = "$pct%"
-        $sync.WPFInputMuteButton.IsChecked  = $dev.IsMuted
+        $sync.WPFInputVolumeSlider.Value   = $pct
+        $sync.WPFInputVolumeLabel.Text     = "$pct%"
+        $sync.WPFInputMuteButton.IsChecked = $dev.IsMuted
     }
 })
 
@@ -2141,12 +2091,12 @@ $sync.WPFInputMuteButton.Add_Click({
     }
 })
 
-# ─── Formats tab device picker change ────────────────────────────────────────
+# Formats tab device picker change
 
 $sync.WPFFormatOutputDevice.Add_SelectionChanged({ Update-OutputFormatDisplay })
 $sync.WPFFormatInputDevice.Add_SelectionChanged({  Update-InputFormatDisplay  })
 
-# ─── Enhancements toggles ─────────────────────────────────────────────────────
+# Enhancements toggles
 
 $sync.WPFOutputEnhancementsToggle.Add_Click({
     $enabled  = $sync.WPFOutputEnhancementsToggle.IsChecked
@@ -2156,8 +2106,8 @@ $sync.WPFOutputEnhancementsToggle.Add_Click({
     Invoke-AudioManagerRunspace {
         $ok = Set-AudioEnhancement -DeviceId $deviceId -Enabled $enabled
         Invoke-WPFUIThread {
-            $sync.WPFOutputEnhancementsToggle.Content = if ($enabled) { "Enhancements: Enabled" } else { "Enhancements: Disabled" }
-            Set-WPFStatus (if ($ok) { "Output enhancements $(if ($enabled) {'enabled'} else {'disabled'})." } else { "Failed to change enhancements." })
+            $sync.WPFOutputEnhancementsToggle.Content = if ($enabled) { "Enhancements: ON" } else { "Enhancements: OFF" }
+            Set-WPFStatus (if ($ok) { "Output enhancements updated." } else { "Failed to change enhancements." })
         }
     }
 })
@@ -2170,29 +2120,29 @@ $sync.WPFInputEnhancementsToggle.Add_Click({
     Invoke-AudioManagerRunspace {
         $ok = Set-AudioEnhancement -DeviceId $deviceId -Enabled $enabled
         Invoke-WPFUIThread {
-            $sync.WPFInputEnhancementsToggle.Content = if ($enabled) { "Enhancements: Enabled" } else { "Enhancements: Disabled" }
-            Set-WPFStatus (if ($ok) { "Input enhancements $(if ($enabled) {'enabled'} else {'disabled'})." } else { "Failed to change enhancements." })
+            $sync.WPFInputEnhancementsToggle.Content = if ($enabled) { "Enhancements: ON" } else { "Enhancements: OFF" }
+            Set-WPFStatus (if ($ok) { "Input enhancements updated." } else { "Failed to change enhancements." })
         }
     }
 })
 
-# ─── Profile list selection ───────────────────────────────────────────────────
+# Profile list selection
 
 $sync.WPFProfileList.Add_SelectionChanged({
-    $selected = $sync.WPFProfileList.SelectedItem
+    $selected   = $sync.WPFProfileList.SelectedItem
     $hasProfile = ($selected -and $selected.Tag)
     $sync.WPFRestoreProfile.IsEnabled = $hasProfile
     $sync.WPFDeleteProfile.IsEnabled  = $hasProfile
     if ($hasProfile) {
-        $p = $selected.Tag
+        $p    = $selected.Tag
         $info = "Created: $($p.created)"
         if ($p.defaultOutputDeviceName) { $info += "`nOutput: $($p.defaultOutputDeviceName)" }
-        if ($p.defaultInputDeviceName)  { $info += "`nInput: $($p.defaultInputDeviceName)" }
+        if ($p.defaultInputDeviceName)  { $info += "`nInput:  $($p.defaultInputDeviceName)" }
         $sync.WPFProfileInfo.Text = $info
     }
 })
 
-# ─── Button dispatcher wiring ─────────────────────────────────────────────────
+# Button dispatcher
 
 foreach ($btnName in @(
     'WPFRefreshButton', 'WPFRefreshApps',
@@ -2208,20 +2158,19 @@ foreach ($btnName in @(
     }
 }
 
-# ─── Initial data load ────────────────────────────────────────────────────────
+# Initial data load
 
 Set-WPFStatus "Loading audio devices..."
 Invoke-WPFRefreshAll
 
-# ─── Show window ─────────────────────────────────────────────────────────────
+# Show window
 
 $sync.Form.ShowDialog() | Out-Null
 
-# ─── Cleanup ─────────────────────────────────────────────────────────────────
+# Cleanup
 
 $sync.RunspacePool.Close()
 $sync.RunspacePool.Dispose()
 Stop-Transcript -ErrorAction SilentlyContinue
-
 
 
