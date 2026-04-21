@@ -1958,12 +1958,15 @@ $inputXML = $inputXML -replace 'mc:Ignorable="d"', '' `
                        -replace 'xmlns:mc="[^"]*"', '' `
                        -replace "x:Class=`"[^`"]*`"", ''
 
-[xml]$xaml   = $inputXML
-$reader      = [System.Xml.XmlNodeReader]::new($xaml)
-$sync.Form   = [Windows.Markup.XamlReader]::Load($reader)
+# Use Parse() so that WPF registers element names into the namescope.
+# XmlNodeReader skips namescope registration, making FindName() return
+# null for every control even though the Window loads and renders fine.
+$sync.Form = [Windows.Markup.XamlReader]::Parse($inputXML)
 
-# Bind all named controls into $sync
+# Bind all named controls into $sync by walking the logical tree
+# (Parse() registers names, so FindName works correctly here)
 
+[xml]$xaml = $inputXML
 $xaml.SelectNodes("//*[@Name]") | ForEach-Object {
     $ctrlName = $_.GetAttribute('Name')
     if ($ctrlName) {
