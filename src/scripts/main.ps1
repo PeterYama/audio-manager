@@ -12,9 +12,11 @@ $sync.Form   = [Windows.Markup.XamlReader]::Load($reader)
 # Bind all named controls into $sync
 
 $xaml.SelectNodes("//*[@Name]") | ForEach-Object {
-    $ctrlName = $_.Name
-    $ctrl     = $sync.Form.FindName($ctrlName)
-    if ($ctrl) { $sync[$ctrlName] = $ctrl }
+    $ctrlName = $_.GetAttribute('Name')
+    if ($ctrlName) {
+        $ctrl = $sync.Form.FindName($ctrlName)
+        if ($ctrl) { $sync[$ctrlName] = $ctrl }
+    }
 }
 
 # Version label

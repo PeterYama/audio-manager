@@ -112,7 +112,7 @@
                                 <RowDefinition Height="Auto" MinHeight="{TemplateBinding MinHeight}"/>
                                 <RowDefinition Height="Auto"/>
                             </Grid.RowDefinitions>
-                            <Track x:Name="PART_Track" Grid.Row="1">
+                            <Track Name="PART_Track" Grid.Row="1">
                                 <Track.DecreaseRepeatButton>
                                     <RepeatButton Command="Slider.DecreaseLarge">
                                         <RepeatButton.Template>
@@ -262,7 +262,7 @@
                                Margin="0,0,8,0" VerticalAlignment="Center"/>
                     <StackPanel VerticalAlignment="Center">
                         <TextBlock Text="Audio Manager" FontSize="16" FontWeight="Bold" Foreground="#E0E0E0"/>
-                        <TextBlock x:Name="WPFVersionLabel" Text="v0.0.0" FontSize="10" Foreground="#8892B0"/>
+                        <TextBlock Name="WPFVersionLabel" Text="v0.0.0" FontSize="10" Foreground="#8892B0"/>
                     </StackPanel>
                 </StackPanel>
 
@@ -270,16 +270,16 @@
                             VerticalAlignment="Center" Margin="20,0">
                     <TextBlock Text="MASTER" FontSize="10" FontWeight="SemiBold" Foreground="#8892B0"
                                VerticalAlignment="Center" Margin="0,0,10,0"/>
-                    <ToggleButton x:Name="WPFMasterMuteButton" Style="{StaticResource MuteBtn}"
+                    <ToggleButton Name="WPFMasterMuteButton" Style="{StaticResource MuteBtn}"
                                   Content="Mute" Width="48" Margin="0,0,10,0"
                                   ToolTip="Mute/Unmute master output"/>
-                    <Slider x:Name="WPFMasterVolumeSlider" Style="{StaticResource AudioSlider}"
+                    <Slider Name="WPFMasterVolumeSlider" Style="{StaticResource AudioSlider}"
                             Width="200" VerticalAlignment="Center"/>
-                    <TextBlock x:Name="WPFMasterVolumeLabel" Text="100%" Foreground="#E0E0E0"
+                    <TextBlock Name="WPFMasterVolumeLabel" Text="100%" Foreground="#E0E0E0"
                                FontWeight="SemiBold" Width="40" Margin="10,0,0,0" VerticalAlignment="Center"/>
                 </StackPanel>
 
-                <Button x:Name="WPFRefreshButton" Grid.Column="2" Style="{StaticResource BtnBase}"
+                <Button Name="WPFRefreshButton" Grid.Column="2" Style="{StaticResource BtnBase}"
                         Content="Refresh" VerticalAlignment="Center"/>
             </Grid>
         </Border>
@@ -288,21 +288,21 @@
         <Border DockPanel.Dock="Top" Background="#16213E" BorderBrush="#2D3561"
                 BorderThickness="0,0,0,1">
             <StackPanel Orientation="Horizontal">
-                <ToggleButton x:Name="WPFTab1BT" Style="{StaticResource TabBtn}" Content="Devices"      IsChecked="True"/>
-                <ToggleButton x:Name="WPFTab2BT" Style="{StaticResource TabBtn}" Content="Applications"/>
-                <ToggleButton x:Name="WPFTab3BT" Style="{StaticResource TabBtn}" Content="Formats"/>
-                <ToggleButton x:Name="WPFTab4BT" Style="{StaticResource TabBtn}" Content="Profiles"/>
+                <ToggleButton Name="WPFTab1BT" Style="{StaticResource TabBtn}" Content="Devices"      IsChecked="True"/>
+                <ToggleButton Name="WPFTab2BT" Style="{StaticResource TabBtn}" Content="Applications"/>
+                <ToggleButton Name="WPFTab3BT" Style="{StaticResource TabBtn}" Content="Formats"/>
+                <ToggleButton Name="WPFTab4BT" Style="{StaticResource TabBtn}" Content="Profiles"/>
             </StackPanel>
         </Border>
 
         <!-- STATUS BAR -->
         <Border DockPanel.Dock="Bottom" Background="#16213E" BorderBrush="#2D3561"
                 BorderThickness="0,1,0,0" Padding="16,6">
-            <TextBlock x:Name="WPFStatusBar" Text="Ready" Foreground="#8892B0" FontSize="11"/>
+            <TextBlock Name="WPFStatusBar" Text="Ready" Foreground="#8892B0" FontSize="11"/>
         </Border>
 
         <!-- TAB CONTENT -->
-        <TabControl x:Name="WPFTabControl" Background="Transparent" BorderThickness="0">
+        <TabControl Name="WPFTabControl" Background="Transparent" BorderThickness="0">
             <TabControl.Resources>
                 <Style TargetType="TabItem">
                     <Setter Property="Visibility" Value="Collapsed"/>
@@ -310,7 +310,7 @@
             </TabControl.Resources>
 
             <!-- TAB 1: DEVICES -->
-            <TabItem x:Name="WPFTab1" IsSelected="True">
+            <TabItem Name="WPFTab1" IsSelected="True">
                 <Grid Margin="20">
                     <Grid.ColumnDefinitions>
                         <ColumnDefinition Width="*"/>
@@ -327,7 +327,7 @@
                                     <RowDefinition Height="Auto"/>
                                     <RowDefinition Height="Auto"/>
                                 </Grid.RowDefinitions>
-                                <Button x:Name="WPFSetDefaultOutput" Grid.Row="0"
+                                <Button Name="WPFSetDefaultOutput" Grid.Row="0"
                                         Style="{StaticResource BtnAccent}"
                                         Content="Set as Default Output" Margin="0,0,0,12"
                                         IsEnabled="False"/>
@@ -337,17 +337,17 @@
                                         <ColumnDefinition Width="Auto"/>
                                         <ColumnDefinition Width="Auto"/>
                                     </Grid.ColumnDefinitions>
-                                    <Slider x:Name="WPFOutputVolumeSlider" Grid.Column="0"
+                                    <Slider Name="WPFOutputVolumeSlider" Grid.Column="0"
                                             Style="{StaticResource AudioSlider}" IsEnabled="False"/>
-                                    <TextBlock x:Name="WPFOutputVolumeLabel" Grid.Column="1"
+                                    <TextBlock Name="WPFOutputVolumeLabel" Grid.Column="1"
                                                Text="--%" Foreground="#E0E0E0" FontWeight="SemiBold"
                                                Width="40" Margin="10,0" VerticalAlignment="Center"/>
-                                    <ToggleButton x:Name="WPFOutputMuteButton" Grid.Column="2"
+                                    <ToggleButton Name="WPFOutputMuteButton" Grid.Column="2"
                                                   Style="{StaticResource MuteBtn}" Content="Mute"
                                                   IsEnabled="False" ToolTip="Mute output device"/>
                                 </Grid>
                             </Grid>
-                            <ListBox x:Name="WPFOutputDeviceList" Margin="0,0,0,12"/>
+                            <ListBox Name="WPFOutputDeviceList" Margin="0,0,0,12"/>
                         </DockPanel>
                     </Border>
 
@@ -360,7 +360,7 @@
                                     <RowDefinition Height="Auto"/>
                                     <RowDefinition Height="Auto"/>
                                 </Grid.RowDefinitions>
-                                <Button x:Name="WPFSetDefaultInput" Grid.Row="0"
+                                <Button Name="WPFSetDefaultInput" Grid.Row="0"
                                         Style="{StaticResource BtnAccent}"
                                         Content="Set as Default Input" Margin="0,0,0,12"
                                         IsEnabled="False"/>
@@ -370,37 +370,37 @@
                                         <ColumnDefinition Width="Auto"/>
                                         <ColumnDefinition Width="Auto"/>
                                     </Grid.ColumnDefinitions>
-                                    <Slider x:Name="WPFInputVolumeSlider" Grid.Column="0"
+                                    <Slider Name="WPFInputVolumeSlider" Grid.Column="0"
                                             Style="{StaticResource AudioSlider}" IsEnabled="False"/>
-                                    <TextBlock x:Name="WPFInputVolumeLabel" Grid.Column="1"
+                                    <TextBlock Name="WPFInputVolumeLabel" Grid.Column="1"
                                                Text="--%" Foreground="#E0E0E0" FontWeight="SemiBold"
                                                Width="40" Margin="10,0" VerticalAlignment="Center"/>
-                                    <ToggleButton x:Name="WPFInputMuteButton" Grid.Column="2"
+                                    <ToggleButton Name="WPFInputMuteButton" Grid.Column="2"
                                                   Style="{StaticResource MuteBtn}" Content="Mute"
                                                   IsEnabled="False" ToolTip="Mute input device"/>
                                 </Grid>
                             </Grid>
-                            <ListBox x:Name="WPFInputDeviceList" Margin="0,0,0,12"/>
+                            <ListBox Name="WPFInputDeviceList" Margin="0,0,0,12"/>
                         </DockPanel>
                     </Border>
                 </Grid>
             </TabItem>
 
             <!-- TAB 2: APPLICATIONS -->
-            <TabItem x:Name="WPFTab2">
+            <TabItem Name="WPFTab2">
                 <DockPanel Margin="20">
                     <Border DockPanel.Dock="Top" Style="{StaticResource Card}" Margin="0,0,0,16">
                         <StackPanel Orientation="Horizontal">
                             <TextBlock Text="Per-Application Volume" Style="{StaticResource SectionHeader}"
                                        Margin="0" VerticalAlignment="Center"/>
-                            <Button x:Name="WPFRefreshApps" Style="{StaticResource BtnBase}"
+                            <Button Name="WPFRefreshApps" Style="{StaticResource BtnBase}"
                                     Content="Refresh Apps" Margin="16,0,0,0" VerticalAlignment="Center"/>
-                            <TextBlock x:Name="WPFAppCount" Text="" Foreground="#8892B0" FontSize="11"
+                            <TextBlock Name="WPFAppCount" Text="" Foreground="#8892B0" FontSize="11"
                                        Margin="12,0,0,0" VerticalAlignment="Center"/>
                         </StackPanel>
                     </Border>
                     <ScrollViewer VerticalScrollBarVisibility="Auto" HorizontalScrollBarVisibility="Disabled">
-                        <ItemsControl x:Name="WPFAppSessionList">
+                        <ItemsControl Name="WPFAppSessionList">
                             <ItemsControl.ItemTemplate>
                                 <DataTemplate>
                                     <Border Style="{StaticResource Card}" Margin="0,0,0,8">
@@ -438,7 +438,7 @@
             </TabItem>
 
             <!-- TAB 3: FORMATS -->
-            <TabItem x:Name="WPFTab3">
+            <TabItem Name="WPFTab3">
                 <Grid Margin="20">
                     <Grid.ColumnDefinitions>
                         <ColumnDefinition Width="*"/>
@@ -451,15 +451,15 @@
                         <StackPanel>
                             <TextBlock Text="Output Format" Style="{StaticResource SectionHeader}"/>
                             <TextBlock Text="Device" Style="{StaticResource Label}"/>
-                            <ComboBox x:Name="WPFFormatOutputDevice" Margin="0,0,0,12"/>
+                            <ComboBox Name="WPFFormatOutputDevice" Margin="0,0,0,12"/>
                             <TextBlock Text="Current Format" Style="{StaticResource Label}"/>
                             <Border Background="#0F1729" BorderBrush="#2D3561" BorderThickness="1"
                                     CornerRadius="4" Padding="8,6" Margin="0,0,0,16">
-                                <TextBlock x:Name="WPFCurrentOutputFormat" Text="--"
+                                <TextBlock Name="WPFCurrentOutputFormat" Text="--"
                                            Foreground="#43D97B" FontFamily="Consolas" FontSize="12"/>
                             </Border>
                             <TextBlock Text="Sample Rate (Hz)" Style="{StaticResource Label}"/>
-                            <ComboBox x:Name="WPFOutputSampleRate" Margin="0,0,0,12">
+                            <ComboBox Name="WPFOutputSampleRate" Margin="0,0,0,12">
                                 <ComboBoxItem Content="44100"  Tag="44100"/>
                                 <ComboBoxItem Content="48000"  Tag="48000" IsSelected="True"/>
                                 <ComboBoxItem Content="88200"  Tag="88200"/>
@@ -468,18 +468,18 @@
                                 <ComboBoxItem Content="192000" Tag="192000"/>
                             </ComboBox>
                             <TextBlock Text="Bit Depth" Style="{StaticResource Label}"/>
-                            <ComboBox x:Name="WPFOutputBitDepth" Margin="0,0,0,16">
+                            <ComboBox Name="WPFOutputBitDepth" Margin="0,0,0,16">
                                 <ComboBoxItem Content="16-bit"        Tag="16"/>
                                 <ComboBoxItem Content="24-bit"        Tag="24" IsSelected="True"/>
                                 <ComboBoxItem Content="32-bit (float)" Tag="32"/>
                             </ComboBox>
-                            <Button x:Name="WPFApplyOutputFormat" Style="{StaticResource BtnAccent}"
+                            <Button Name="WPFApplyOutputFormat" Style="{StaticResource BtnAccent}"
                                     Content="Apply Output Format" Margin="0,0,0,20" IsEnabled="False"/>
                             <Separator Background="#2D3561" Margin="0,0,0,16"/>
                             <TextBlock Text="Audio Enhancements" Style="{StaticResource SectionHeader}"/>
                             <TextBlock Text="Toggle system audio enhancements for this device."
                                        Style="{StaticResource Label}" TextWrapping="Wrap" Margin="0,0,0,10"/>
-                            <ToggleButton x:Name="WPFOutputEnhancementsToggle" Style="{StaticResource MuteBtn}"
+                            <ToggleButton Name="WPFOutputEnhancementsToggle" Style="{StaticResource MuteBtn}"
                                           Content="Enhancements: ON" MinWidth="180" IsEnabled="False"
                                           HorizontalAlignment="Left"/>
                         </StackPanel>
@@ -490,15 +490,15 @@
                         <StackPanel>
                             <TextBlock Text="Input Format" Style="{StaticResource SectionHeader}"/>
                             <TextBlock Text="Device" Style="{StaticResource Label}"/>
-                            <ComboBox x:Name="WPFFormatInputDevice" Margin="0,0,0,12"/>
+                            <ComboBox Name="WPFFormatInputDevice" Margin="0,0,0,12"/>
                             <TextBlock Text="Current Format" Style="{StaticResource Label}"/>
                             <Border Background="#0F1729" BorderBrush="#2D3561" BorderThickness="1"
                                     CornerRadius="4" Padding="8,6" Margin="0,0,0,16">
-                                <TextBlock x:Name="WPFCurrentInputFormat" Text="--"
+                                <TextBlock Name="WPFCurrentInputFormat" Text="--"
                                            Foreground="#43D97B" FontFamily="Consolas" FontSize="12"/>
                             </Border>
                             <TextBlock Text="Sample Rate (Hz)" Style="{StaticResource Label}"/>
-                            <ComboBox x:Name="WPFInputSampleRate" Margin="0,0,0,12">
+                            <ComboBox Name="WPFInputSampleRate" Margin="0,0,0,12">
                                 <ComboBoxItem Content="8000"  Tag="8000"/>
                                 <ComboBoxItem Content="16000" Tag="16000"/>
                                 <ComboBoxItem Content="44100" Tag="44100"/>
@@ -506,18 +506,18 @@
                                 <ComboBoxItem Content="96000" Tag="96000"/>
                             </ComboBox>
                             <TextBlock Text="Bit Depth" Style="{StaticResource Label}"/>
-                            <ComboBox x:Name="WPFInputBitDepth" Margin="0,0,0,16">
+                            <ComboBox Name="WPFInputBitDepth" Margin="0,0,0,16">
                                 <ComboBoxItem Content="16-bit"         Tag="16" IsSelected="True"/>
                                 <ComboBoxItem Content="24-bit"         Tag="24"/>
                                 <ComboBoxItem Content="32-bit (float)" Tag="32"/>
                             </ComboBox>
-                            <Button x:Name="WPFApplyInputFormat" Style="{StaticResource BtnAccent}"
+                            <Button Name="WPFApplyInputFormat" Style="{StaticResource BtnAccent}"
                                     Content="Apply Input Format" Margin="0,0,0,20" IsEnabled="False"/>
                             <Separator Background="#2D3561" Margin="0,0,0,16"/>
                             <TextBlock Text="Audio Enhancements" Style="{StaticResource SectionHeader}"/>
                             <TextBlock Text="Toggle system audio enhancements for this device."
                                        Style="{StaticResource Label}" TextWrapping="Wrap" Margin="0,0,0,10"/>
-                            <ToggleButton x:Name="WPFInputEnhancementsToggle" Style="{StaticResource MuteBtn}"
+                            <ToggleButton Name="WPFInputEnhancementsToggle" Style="{StaticResource MuteBtn}"
                                           Content="Enhancements: ON" MinWidth="180" IsEnabled="False"
                                           HorizontalAlignment="Left"/>
                         </StackPanel>
@@ -526,7 +526,7 @@
             </TabItem>
 
             <!-- TAB 4: PROFILES -->
-            <TabItem x:Name="WPFTab4">
+            <TabItem Name="WPFTab4">
                 <Grid Margin="20">
                     <Grid.ColumnDefinitions>
                         <ColumnDefinition Width="*"/>
@@ -539,14 +539,14 @@
                         <DockPanel>
                             <TextBlock DockPanel.Dock="Top" Text="Saved Profiles" Style="{StaticResource SectionHeader}"/>
                             <StackPanel DockPanel.Dock="Bottom" Orientation="Horizontal" Margin="0,12,0,0">
-                                <Button x:Name="WPFRestoreProfile" Style="{StaticResource BtnAccent}"
+                                <Button Name="WPFRestoreProfile" Style="{StaticResource BtnAccent}"
                                         Content="Restore" IsEnabled="False" Margin="0,0,8,0"/>
-                                <Button x:Name="WPFDeleteProfile" Style="{StaticResource BtnBase}"
+                                <Button Name="WPFDeleteProfile" Style="{StaticResource BtnBase}"
                                         Content="Delete" IsEnabled="False"/>
                             </StackPanel>
-                            <TextBlock DockPanel.Dock="Bottom" x:Name="WPFProfileInfo" Text=""
+                            <TextBlock DockPanel.Dock="Bottom" Name="WPFProfileInfo" Text=""
                                        Foreground="#8892B0" FontSize="11" Margin="0,8,0,0" TextWrapping="Wrap"/>
-                            <ListBox x:Name="WPFProfileList"/>
+                            <ListBox Name="WPFProfileList"/>
                         </DockPanel>
                     </Border>
 
@@ -555,19 +555,19 @@
                         <StackPanel>
                             <TextBlock Text="Save Current State" Style="{StaticResource SectionHeader}"/>
                             <TextBlock Text="Profile Name" Style="{StaticResource Label}"/>
-                            <TextBox x:Name="WPFProfileNameInput" Margin="0,0,0,16"/>
+                            <TextBox Name="WPFProfileNameInput" Margin="0,0,0,16"/>
                             <TextBlock Text="Capture" Style="{StaticResource Label}"/>
-                            <CheckBox x:Name="WPFProfileSaveOutputDevice" Content="Default Output Device"
+                            <CheckBox Name="WPFProfileSaveOutputDevice" Content="Default Output Device"
                                       IsChecked="True" Margin="0,4"/>
-                            <CheckBox x:Name="WPFProfileSaveInputDevice"  Content="Default Input Device"
+                            <CheckBox Name="WPFProfileSaveInputDevice"  Content="Default Input Device"
                                       IsChecked="True" Margin="0,4"/>
-                            <CheckBox x:Name="WPFProfileSaveOutputVolume" Content="Output Volume and Mute"
+                            <CheckBox Name="WPFProfileSaveOutputVolume" Content="Output Volume and Mute"
                                       IsChecked="True" Margin="0,4"/>
-                            <CheckBox x:Name="WPFProfileSaveInputVolume"  Content="Input Volume and Mute"
+                            <CheckBox Name="WPFProfileSaveInputVolume"  Content="Input Volume and Mute"
                                       IsChecked="True" Margin="0,4"/>
-                            <CheckBox x:Name="WPFProfileSaveAppVolumes"   Content="Per-App Volumes"
+                            <CheckBox Name="WPFProfileSaveAppVolumes"   Content="Per-App Volumes"
                                       IsChecked="True" Margin="0,4,0,16"/>
-                            <Button x:Name="WPFSaveProfile" Style="{StaticResource BtnAccent}"
+                            <Button Name="WPFSaveProfile" Style="{StaticResource BtnAccent}"
                                     Content="Save Profile"/>
                         </StackPanel>
                     </Border>
