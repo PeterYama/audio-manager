@@ -2128,14 +2128,20 @@ $_iss.Variables.Add(
     [System.Management.Automation.Runspaces.SessionStateVariableEntry]::new('sync', $sync, '')
 )
 
-Get-Command -CommandType Function | Where-Object { $null -eq $_.Module } | ForEach-Object {
-    try {
-        $entry = [System.Management.Automation.Runspaces.SessionStateFunctionEntry]::new(
-            $_.Name, $_.ScriptBlock.ToString()
-        )
-        $_iss.Commands.Add($entry)
-    } catch {}
-}
+# Only inject our own functions - avoids enumerating hundreds of built-in PS functions
+$_amPattern = '^(Get-Audio|Set-Audio|Get-Device|Set-Device|Get-App|Set-App|' +
+              'Set-Default|Remove-Audio|Save-Audio|Restore-Audio|' +
+              'Initialize-|Update-|Invoke-WPF|Set-WPFStatus|Invoke-Audio)'
+Get-Command -CommandType Function |
+    Where-Object { $_.Name -match $_amPattern } |
+    ForEach-Object {
+        try {
+            $entry = [System.Management.Automation.Runspaces.SessionStateFunctionEntry]::new(
+                $_.Name, $_.ScriptBlock.ToString()
+            )
+            $_iss.Commands.Add($entry)
+        } catch {}
+    }
 
 $sync.RunspacePool = [runspacefactory]::CreateRunspacePool(1, [Environment]::ProcessorCount, $_iss, $Host)
 $sync.RunspacePool.Open()
