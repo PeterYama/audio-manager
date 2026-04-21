@@ -20,11 +20,12 @@ function Invoke-WPFButton {
             $selected = $sync.WPFOutputDeviceList.SelectedItem
             if (-not $selected) { Set-WPFStatus "Select an output device first."; return }
             $deviceId = $selected.Tag
-            Set-WPFStatus "Setting default output to '$($selected.Content)'..."
+            $devName  = $selected.Content
+            Set-WPFStatus "Setting default output to '$devName'..."
             Invoke-AudioManagerRunspace {
-                $ok = Set-DefaultAudioDevice -DeviceId $deviceId -Flow ([AudioManager.EDataFlow]::eRender)
+                $ok = Set-DefaultAudioDevice -DeviceId $deviceId
                 Invoke-WPFUIThread {
-                    Set-WPFStatus (if ($ok) { "Default output set to '$($selected.Content)'." } else { "Failed to set default output." })
+                    Set-WPFStatus (if ($ok) { "Default output set to '$devName'." } else { "Failed to set default output." })
                 }
             }
         }
@@ -33,11 +34,12 @@ function Invoke-WPFButton {
             $selected = $sync.WPFInputDeviceList.SelectedItem
             if (-not $selected) { Set-WPFStatus "Select an input device first."; return }
             $deviceId = $selected.Tag
-            Set-WPFStatus "Setting default input to '$($selected.Content)'..."
+            $devName  = $selected.Content
+            Set-WPFStatus "Setting default input to '$devName'..."
             Invoke-AudioManagerRunspace {
-                $ok = Set-DefaultAudioDevice -DeviceId $deviceId -Flow ([AudioManager.EDataFlow]::eCapture)
+                $ok = Set-DefaultAudioDevice -DeviceId $deviceId
                 Invoke-WPFUIThread {
-                    Set-WPFStatus (if ($ok) { "Default input set to '$($selected.Content)'." } else { "Failed to set default input." })
+                    Set-WPFStatus (if ($ok) { "Default input set to '$devName'." } else { "Failed to set default input." })
                 }
             }
         }

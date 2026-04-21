@@ -71,14 +71,18 @@ $sync = [hashtable]::Synchronized(@{
 
 $script:CoreAudioCSharp = @'
 using System;
+using System.Collections.Generic;
+using System.Diagnostics;
 using System.Runtime.InteropServices;
 
 namespace AudioManager
 {
-    // ─── Enumerations ────────────────────────────────────────────────────────────
+    // -----------------------------------------------------------------------
+    // Enumerations
+    // -----------------------------------------------------------------------
 
-    public enum EDataFlow { eRender = 0, eCapture = 1, eAll = 2 }
-    public enum ERole    { eConsole = 0, eMultimedia = 1, eCommunications = 2 }
+    public enum EDataFlow   { eRender = 0, eCapture = 1, eAll = 2 }
+    public enum ERole       { eConsole = 0, eMultimedia = 1, eCommunications = 2 }
     public enum AudioSessionState { Inactive = 0, Active = 1, Expired = 2 }
 
     [Flags]
@@ -91,10 +95,12 @@ namespace AudioManager
         All        = 0x0000000F
     }
 
-    // ─── Structs ─────────────────────────────────────────────────────────────────
+    // -----------------------------------------------------------------------
+    // Structs
+    // -----------------------------------------------------------------------
 
     [StructLayout(LayoutKind.Sequential)]
-    public struct WAVEFORMATEX
+    internal struct WAVEFORMATEX
     {
         public ushort wFormatTag;
         public ushort nChannels;
@@ -105,8 +111,8 @@ namespace AudioManager
         public ushort cbSize;
     }
 
-    [StructLayout(LayoutKind.Explicit)]
-    public struct WAVEFORMATEXTENSIBLE
+    [StructLayout(LayoutKind.Explicit, Pack = 1)]
+    internal struct WAVEFORMATEXTENSIBLE
     {
         [FieldOffset(0)]  public WAVEFORMATEX Format;
         [FieldOffset(18)] public ushort       wValidBitsPerSample;
@@ -115,90 +121,21 @@ namespace AudioManager
     }
 
     [StructLayout(LayoutKind.Sequential)]
-    public struct PropertyKey
+    internal struct PropertyKey
     {
-        public Guid  fmtid;
-        public uint  pid;
+        public Guid fmtid;
+        public uint pid;
     }
-
-    // ─── IMMDeviceEnumerator ─────────────────────────────────────────────────────
-
-    [Guid("A95664D2-9614-4F35-A746-DE8DB63617E6")]
-    [InterfaceType(ComInterfaceType.InterfaceIsIUnknown)]
-    public interface IMMDeviceEnumerator
-    {
-        int EnumAudioEndpoints(
-            [In] EDataFlow dataFlow,
-            [In] DeviceState stateMask,
-            [Out] out IMMDeviceCollection devices);
-
-        int GetDefaultAudioEndpoint(
-            [In] EDataFlow dataFlow,
-            [In] ERole role,
-            [Out] out IMMDevice endpoint);
-
-        int GetDevice(
-            [In, MarshalAs(UnmanagedType.LPWStr)] string pwstrId,
-            [Out] out IMMDevice device);
-
-        int RegisterEndpointNotificationCallback(IntPtr client);
-        int UnregisterEndpointNotificationCallback(IntPtr client);
-    }
-
-    // ─── IMMDeviceCollection ─────────────────────────────────────────────────────
-
-    [Guid("0BD7A1BE-7A1A-44DB-8397-BE5155E7F6E1")]
-    [InterfaceType(ComInterfaceType.InterfaceIsIUnknown)]
-    public interface IMMDeviceCollection
-    {
-        int GetCount([Out] out uint count);
-        int Item([In] uint index, [Out] out IMMDevice device);
-    }
-
-    // ─── IMMDevice ───────────────────────────────────────────────────────────────
-
-    [Guid("D666063F-1587-4E43-81F1-B948E807363F")]
-    [InterfaceType(ComInterfaceType.InterfaceIsIUnknown)]
-    public interface IMMDevice
-    {
-        int Activate(
-            [In] ref Guid iid,
-            [In] int dwClsCtx,
-            [In] IntPtr pActivationParams,
-            [Out, MarshalAs(UnmanagedType.IUnknown)] out object ppInterface);
-
-        int OpenPropertyStore(
-            [In] int stgmAccess,
-            [Out] out IPropertyStore properties);
-
-        int GetId([Out, MarshalAs(UnmanagedType.LPWStr)] out string id);
-        int GetState([Out] out DeviceState state);
-    }
-
-    // ─── IPropertyStore ──────────────────────────────────────────────────────────
-
-    [Guid("886D8EEB-8CF2-4446-8D02-CDBA1DBDCF99")]
-    [InterfaceType(ComInterfaceType.InterfaceIsIUnknown)]
-    public interface IPropertyStore
-    {
-        int GetCount([Out] out int count);
-        int GetAt([In] int index, [Out] out PropertyKey key);
-        int GetValue([In] ref PropertyKey key, [Out] out PropVariant value);
-        int SetValue([In] ref PropertyKey key, [In] ref PropVariant value);
-        int Commit();
-    }
-
-    // ─── PropVariant (simplified) ────────────────────────────────────────────────
 
     [StructLayout(LayoutKind.Sequential)]
-    public struct PropVariant
+    internal struct PropVariant
     {
         public ushort vt;
         public ushort reserved1;
         public ushort reserved2;
         public ushort reserved3;
-        public IntPtr  data;
-        public IntPtr  data2;
+        public IntPtr data;
+        public IntPtr data2;
 
         public string GetStringValue()
         {
@@ -208,194 +145,599 @@ namespace AudioManager
         }
     }
 
-    // ─── IAudioEndpointVolume ────────────────────────────────────────────────────
+    // -----------------------------------------------------------------------
+    // COM Interfaces  (internal - never exposed directly to PowerShell)
+    // -----------------------------------------------------------------------
+
+    [Guid("A95664D2-9614-4F35-A746-DE8DB63617E6")]
+    [InterfaceType(ComInterfaceType.InterfaceIsIUnknown)]
+    [ComImport]
+    internal interface IMMDeviceEnumerator
+    {
+        int EnumAudioEndpoints([In] EDataFlow flow, [In] DeviceState mask,
+                               [Out] out IMMDeviceCollection devices);
+        int GetDefaultAudioEndpoint([In] EDataFlow flow, [In] ERole role,
+                                    [Out] out IMMDevice endpoint);
+        int GetDevice([In, MarshalAs(UnmanagedType.LPWStr)] string id,
+                      [Out] out IMMDevice device);
+        int RegisterEndpointNotificationCallback(IntPtr client);
+        int UnregisterEndpointNotificationCallback(IntPtr client);
+    }
+
+    [Guid("0BD7A1BE-7A1A-44DB-8397-BE5155E7F6E1")]
+    [InterfaceType(ComInterfaceType.InterfaceIsIUnknown)]
+    [ComImport]
+    internal interface IMMDeviceCollection
+    {
+        int GetCount([Out] out uint count);
+        int Item([In] uint index, [Out] out IMMDevice device);
+    }
+
+    [Guid("D666063F-1587-4E43-81F1-B948E807363F")]
+    [InterfaceType(ComInterfaceType.InterfaceIsIUnknown)]
+    [ComImport]
+    internal interface IMMDevice
+    {
+        int Activate([In] ref Guid iid, [In] int clsCtx,
+                     [In] IntPtr pActivationParams,
+                     [Out, MarshalAs(UnmanagedType.IUnknown)] out object ppInterface);
+        int OpenPropertyStore([In] int stgmAccess, [Out] out IPropertyStore props);
+        int GetId([Out, MarshalAs(UnmanagedType.LPWStr)] out string id);
+        int GetState([Out] out DeviceState state);
+    }
+
+    [Guid("886D8EEB-8CF2-4446-8D02-CDBA1DBDCF99")]
+    [InterfaceType(ComInterfaceType.InterfaceIsIUnknown)]
+    [ComImport]
+    internal interface IPropertyStore
+    {
+        int GetCount([Out] out int count);
+        int GetAt([In] int index, [Out] out PropertyKey key);
+        int GetValue([In] ref PropertyKey key, [Out] out PropVariant value);
+        int SetValue([In] ref PropertyKey key, [In] ref PropVariant value);
+        int Commit();
+    }
 
     [Guid("5CDF2C82-841E-4546-9722-0CF74078229A")]
     [InterfaceType(ComInterfaceType.InterfaceIsIUnknown)]
-    public interface IAudioEndpointVolume
+    [ComImport]
+    internal interface IAudioEndpointVolume
     {
-        int RegisterControlChangeNotify(IntPtr callback);
-        int UnregisterControlChangeNotify(IntPtr callback);
+        int RegisterControlChangeNotify(IntPtr cb);
+        int UnregisterControlChangeNotify(IntPtr cb);
         int GetChannelCount([Out] out int count);
-        int SetMasterVolumeLevel([In] float level, [In] ref Guid eventContext);
-        int SetMasterVolumeLevelScalar([In] float level, [In] ref Guid eventContext);
+        int SetMasterVolumeLevel([In] float level, [In] ref Guid ctx);
+        int SetMasterVolumeLevelScalar([In] float level, [In] ref Guid ctx);
         int GetMasterVolumeLevel([Out] out float level);
         int GetMasterVolumeLevelScalar([Out] out float level);
-        int SetChannelVolumeLevel([In] uint channel, [In] float level, [In] ref Guid eventContext);
-        int SetChannelVolumeLevelScalar([In] uint channel, [In] float level, [In] ref Guid eventContext);
-        int GetChannelVolumeLevel([In] uint channel, [Out] out float level);
-        int GetChannelVolumeLevelScalar([In] uint channel, [Out] out float level);
-        int SetMute([In, MarshalAs(UnmanagedType.Bool)] bool isMuted, [In] ref Guid eventContext);
-        int GetMute([Out, MarshalAs(UnmanagedType.Bool)] out bool isMuted);
-        int GetVolumeStepInfo([Out] out uint step, [Out] out uint stepCount);
-        int VolumeStepUp([In] ref Guid eventContext);
-        int VolumeStepDown([In] ref Guid eventContext);
-        int QueryHardwareSupport([Out] out uint hardwareSupportMask);
-        int GetVolumeRange([Out] out float volumeMin, [Out] out float volumeMax, [Out] out float volumeIncrement);
+        int SetChannelVolumeLevel([In] uint ch, [In] float level, [In] ref Guid ctx);
+        int SetChannelVolumeLevelScalar([In] uint ch, [In] float level, [In] ref Guid ctx);
+        int GetChannelVolumeLevel([In] uint ch, [Out] out float level);
+        int GetChannelVolumeLevelScalar([In] uint ch, [Out] out float level);
+        int SetMute([In, MarshalAs(UnmanagedType.Bool)] bool muted, [In] ref Guid ctx);
+        int GetMute([Out, MarshalAs(UnmanagedType.Bool)] out bool muted);
+        int GetVolumeStepInfo([Out] out uint step, [Out] out uint count);
+        int VolumeStepUp([In] ref Guid ctx);
+        int VolumeStepDown([In] ref Guid ctx);
+        int QueryHardwareSupport([Out] out uint mask);
+        int GetVolumeRange([Out] out float min, [Out] out float max, [Out] out float inc);
     }
-
-    // ─── IAudioSessionManager2 ───────────────────────────────────────────────────
 
     [Guid("77AA99A0-1BD6-484F-8BC7-2C654C9A9B6F")]
     [InterfaceType(ComInterfaceType.InterfaceIsIUnknown)]
-    public interface IAudioSessionManager2
+    [ComImport]
+    internal interface IAudioSessionManager2
     {
-        int GetAudioSessionControl(
-            [In] ref Guid audioSessionGuid,
-            [In] uint streamFlags,
-            [Out] out IAudioSessionControl session);
-
-        int GetSimpleAudioVolume(
-            [In] ref Guid audioSessionGuid,
-            [In] uint streamFlags,
-            [Out] out ISimpleAudioVolume audioVolume);
-
+        int GetAudioSessionControl([In] ref Guid sessionGuid, [In] uint flags,
+                                   [Out] out IAudioSessionControl session);
+        int GetSimpleAudioVolume([In] ref Guid sessionGuid, [In] uint flags,
+                                 [Out] out ISimpleAudioVolume vol);
         int GetSessionEnumerator([Out] out IAudioSessionEnumerator sessionEnum);
-        int RegisterSessionNotification(IntPtr notification);
-        int UnregisterSessionNotification(IntPtr notification);
-        int RegisterDuckNotification([MarshalAs(UnmanagedType.LPWStr)] string sessionId, IntPtr duckNotification);
-        int UnregisterDuckNotification(IntPtr duckNotification);
+        int RegisterSessionNotification(IntPtr notify);
+        int UnregisterSessionNotification(IntPtr notify);
+        int RegisterDuckNotification([MarshalAs(UnmanagedType.LPWStr)] string id, IntPtr notify);
+        int UnregisterDuckNotification(IntPtr notify);
     }
-
-    // ─── IAudioSessionEnumerator ─────────────────────────────────────────────────
 
     [Guid("E2F5BB11-0570-40CA-ACDD-3AA01277DEE8")]
     [InterfaceType(ComInterfaceType.InterfaceIsIUnknown)]
-    public interface IAudioSessionEnumerator
+    [ComImport]
+    internal interface IAudioSessionEnumerator
     {
-        int GetCount([Out] out int sessionCount);
-        int GetSession([In] int sessionIndex, [Out] out IAudioSessionControl session);
+        int GetCount([Out] out int count);
+        int GetSession([In] int index, [Out] out IAudioSessionControl session);
     }
-
-    // ─── IAudioSessionControl ────────────────────────────────────────────────────
 
     [Guid("F4B1A599-7266-4319-A8CA-E70ACB11E8CD")]
     [InterfaceType(ComInterfaceType.InterfaceIsIUnknown)]
-    public interface IAudioSessionControl
+    [ComImport]
+    internal interface IAudioSessionControl
     {
         int GetState([Out] out AudioSessionState state);
-        int GetDisplayName([Out, MarshalAs(UnmanagedType.LPWStr)] out string displayName);
-        int SetDisplayName([In, MarshalAs(UnmanagedType.LPWStr)] string value, [In] ref Guid eventContext);
-        int GetIconPath([Out, MarshalAs(UnmanagedType.LPWStr)] out string iconPath);
-        int SetIconPath([In, MarshalAs(UnmanagedType.LPWStr)] string value, [In] ref Guid eventContext);
-        int GetGroupingParam([Out] out Guid groupingParam);
-        int SetGroupingParam([In] ref Guid Override, [In] ref Guid eventContext);
-        int RegisterAudioSessionNotification(IntPtr NewNotifications);
-        int UnregisterAudioSessionNotification(IntPtr NewNotifications);
+        int GetDisplayName([Out, MarshalAs(UnmanagedType.LPWStr)] out string name);
+        int SetDisplayName([In, MarshalAs(UnmanagedType.LPWStr)] string val, [In] ref Guid ctx);
+        int GetIconPath([Out, MarshalAs(UnmanagedType.LPWStr)] out string path);
+        int SetIconPath([In, MarshalAs(UnmanagedType.LPWStr)] string val, [In] ref Guid ctx);
+        int GetGroupingParam([Out] out Guid param);
+        int SetGroupingParam([In] ref Guid param, [In] ref Guid ctx);
+        int RegisterAudioSessionNotification(IntPtr notify);
+        int UnregisterAudioSessionNotification(IntPtr notify);
     }
-
-    // ─── IAudioSessionControl2 ───────────────────────────────────────────────────
 
     [Guid("BFB7FF88-7239-4FC9-8FA2-07C950BE9C6D")]
     [InterfaceType(ComInterfaceType.InterfaceIsIUnknown)]
-    public interface IAudioSessionControl2
+    [ComImport]
+    internal interface IAudioSessionControl2
     {
-        // Inherited from IAudioSessionControl
         int GetState([Out] out AudioSessionState state);
-        int GetDisplayName([Out, MarshalAs(UnmanagedType.LPWStr)] out string displayName);
-        int SetDisplayName([In, MarshalAs(UnmanagedType.LPWStr)] string value, [In] ref Guid eventContext);
-        int GetIconPath([Out, MarshalAs(UnmanagedType.LPWStr)] out string iconPath);
-        int SetIconPath([In, MarshalAs(UnmanagedType.LPWStr)] string value, [In] ref Guid eventContext);
-        int GetGroupingParam([Out] out Guid groupingParam);
-        int SetGroupingParam([In] ref Guid Override, [In] ref Guid eventContext);
-        int RegisterAudioSessionNotification(IntPtr NewNotifications);
-        int UnregisterAudioSessionNotification(IntPtr NewNotifications);
-        // IAudioSessionControl2-specific
-        int GetSessionIdentifier([Out, MarshalAs(UnmanagedType.LPWStr)] out string retVal);
-        int GetSessionInstanceIdentifier([Out, MarshalAs(UnmanagedType.LPWStr)] out string retVal);
-        int GetProcessId([Out] out uint retVal);
+        int GetDisplayName([Out, MarshalAs(UnmanagedType.LPWStr)] out string name);
+        int SetDisplayName([In, MarshalAs(UnmanagedType.LPWStr)] string val, [In] ref Guid ctx);
+        int GetIconPath([Out, MarshalAs(UnmanagedType.LPWStr)] out string path);
+        int SetIconPath([In, MarshalAs(UnmanagedType.LPWStr)] string val, [In] ref Guid ctx);
+        int GetGroupingParam([Out] out Guid param);
+        int SetGroupingParam([In] ref Guid param, [In] ref Guid ctx);
+        int RegisterAudioSessionNotification(IntPtr notify);
+        int UnregisterAudioSessionNotification(IntPtr notify);
+        int GetSessionIdentifier([Out, MarshalAs(UnmanagedType.LPWStr)] out string id);
+        int GetSessionInstanceIdentifier([Out, MarshalAs(UnmanagedType.LPWStr)] out string id);
+        int GetProcessId([Out] out uint pid);
         int IsSystemSoundsSession();
         int SetDuckingPreference([In, MarshalAs(UnmanagedType.Bool)] bool optOut);
     }
 
-    // ─── ISimpleAudioVolume ──────────────────────────────────────────────────────
-
     [Guid("87CE5498-68D6-44E5-9215-6DA47EF883D8")]
     [InterfaceType(ComInterfaceType.InterfaceIsIUnknown)]
-    public interface ISimpleAudioVolume
+    [ComImport]
+    internal interface ISimpleAudioVolume
     {
-        int SetMasterVolume([In] float fLevel, [In] ref Guid EventContext);
-        int GetMasterVolume([Out] out float pfLevel);
-        int SetMute([In, MarshalAs(UnmanagedType.Bool)] bool bMute, [In] ref Guid EventContext);
-        int GetMute([Out, MarshalAs(UnmanagedType.Bool)] out bool pbMute);
+        int SetMasterVolume([In] float level, [In] ref Guid ctx);
+        int GetMasterVolume([Out] out float level);
+        int SetMute([In, MarshalAs(UnmanagedType.Bool)] bool muted, [In] ref Guid ctx);
+        int GetMute([Out, MarshalAs(UnmanagedType.Bool)] out bool muted);
     }
-
-    // ─── IPolicyConfig (undocumented, stable since Vista) ────────────────────────
 
     [Guid("F8679F50-850A-41CF-9C72-430F290290C8")]
     [InterfaceType(ComInterfaceType.InterfaceIsIUnknown)]
-    public interface IPolicyConfig
+    [ComImport]
+    internal interface IPolicyConfig
     {
-        int GetMixFormat([MarshalAs(UnmanagedType.LPWStr)] string pszDeviceName, [Out] out IntPtr ppFormat);
-        int GetDeviceFormat([MarshalAs(UnmanagedType.LPWStr)] string pszDeviceName, [In, MarshalAs(UnmanagedType.Bool)] bool bDefault, [Out] out IntPtr ppFormat);
-        int ResetDeviceFormat([MarshalAs(UnmanagedType.LPWStr)] string pszDeviceName);
-        int SetDeviceFormat([MarshalAs(UnmanagedType.LPWStr)] string pszDeviceName, [In] ref WAVEFORMATEX pEndpointFormat, IntPtr MixFormat);
-        int GetProcessingPeriod([MarshalAs(UnmanagedType.LPWStr)] string pszDeviceName, [In, MarshalAs(UnmanagedType.Bool)] bool bDefault, [Out] out long pmftDefaultPeriod, [Out] out long pmftMinimumPeriod);
-        int SetProcessingPeriod([MarshalAs(UnmanagedType.LPWStr)] string pszDeviceName, [In] ref long pmftPeriod);
-        int GetShareMode([MarshalAs(UnmanagedType.LPWStr)] string pszDeviceName, [Out] out DeviceShareMode pMode);
-        int SetShareMode([MarshalAs(UnmanagedType.LPWStr)] string pszDeviceName, [In] DeviceShareMode mode);
-        int GetPropertyValue([MarshalAs(UnmanagedType.LPWStr)] string pszDeviceName, [In, MarshalAs(UnmanagedType.Bool)] bool bFxStore, [In] ref PropertyKey key, [Out] out PropVariant pv);
-        int SetPropertyValue([MarshalAs(UnmanagedType.LPWStr)] string pszDeviceName, [In, MarshalAs(UnmanagedType.Bool)] bool bFxStore, [In] ref PropertyKey key, [In] ref PropVariant pv);
-        int SetDefaultEndpoint([MarshalAs(UnmanagedType.LPWStr)] string pszDeviceName, [In] ERole role);
-        int SetEndpointVisibility([MarshalAs(UnmanagedType.LPWStr)] string pszDeviceName, [In, MarshalAs(UnmanagedType.Bool)] bool bVisible);
+        int GetMixFormat([MarshalAs(UnmanagedType.LPWStr)] string dev, [Out] out IntPtr fmt);
+        int GetDeviceFormat([MarshalAs(UnmanagedType.LPWStr)] string dev,
+                            [In, MarshalAs(UnmanagedType.Bool)] bool bDefault,
+                            [Out] out IntPtr fmt);
+        int ResetDeviceFormat([MarshalAs(UnmanagedType.LPWStr)] string dev);
+        int SetDeviceFormat([MarshalAs(UnmanagedType.LPWStr)] string dev,
+                            [In] IntPtr endpointFmt, IntPtr mixFmt);
+        int GetProcessingPeriod([MarshalAs(UnmanagedType.LPWStr)] string dev,
+                                [In, MarshalAs(UnmanagedType.Bool)] bool bDefault,
+                                [Out] out long defPeriod, [Out] out long minPeriod);
+        int SetProcessingPeriod([MarshalAs(UnmanagedType.LPWStr)] string dev,
+                                [In] ref long period);
+        int GetShareMode([MarshalAs(UnmanagedType.LPWStr)] string dev,
+                         [Out] out int mode);
+        int SetShareMode([MarshalAs(UnmanagedType.LPWStr)] string dev, [In] int mode);
+        int GetPropertyValue([MarshalAs(UnmanagedType.LPWStr)] string dev,
+                             [In, MarshalAs(UnmanagedType.Bool)] bool bFxStore,
+                             [In] ref PropertyKey key, [Out] out PropVariant pv);
+        int SetPropertyValue([MarshalAs(UnmanagedType.LPWStr)] string dev,
+                             [In, MarshalAs(UnmanagedType.Bool)] bool bFxStore,
+                             [In] ref PropertyKey key, [In] ref PropVariant pv);
+        int SetDefaultEndpoint([MarshalAs(UnmanagedType.LPWStr)] string dev, [In] ERole role);
+        int SetEndpointVisibility([MarshalAs(UnmanagedType.LPWStr)] string dev,
+                                  [In, MarshalAs(UnmanagedType.Bool)] bool visible);
     }
 
-    public enum DeviceShareMode { Shared = 0, Exclusive = 1 }
-
-    // ─── COM CoCreate helpers ────────────────────────────────────────────────────
+    // -----------------------------------------------------------------------
+    // CoClass wrappers  (internal)
+    // -----------------------------------------------------------------------
 
     [ComImport, Guid("BCDE0395-E52F-467C-8E3D-C4579291692E")]
-    public class MMDeviceEnumeratorComObject { }
+    internal class MMDeviceEnumeratorComObject { }
 
     [ComImport, Guid("870AF99C-171D-4F9E-AF0D-E63DF40C2BC9")]
-    public class CPolicyConfigClient { }
+    internal class CPolicyConfigClient { }
 
-    // ─── Static helper ───────────────────────────────────────────────────────────
+    // -----------------------------------------------------------------------
+    // Public data classes returned to PowerShell
+    // -----------------------------------------------------------------------
+
+    public class AudioDeviceInfo
+    {
+        public string DeviceId    { get; set; }
+        public string Name        { get; set; }
+        public float  VolumeScalar { get; set; }
+        public bool   IsMuted     { get; set; }
+    }
+
+    public class AudioSessionInfo
+    {
+        public string SessionKey   { get; set; }
+        public string Name         { get; set; }
+        public int    ProcessId    { get; set; }
+        public string PidLabel     { get; set; }
+        public int    VolumePercent { get; set; }
+        public string VolumeLabel  { get; set; }
+        public bool   IsMuted      { get; set; }
+        public string State        { get; set; }
+        public string Icon         { get; set; }
+    }
+
+    public class DeviceFormatInfo
+    {
+        public string DeviceId   { get; set; }
+        public int    SampleRate { get; set; }
+        public int    BitDepth   { get; set; }
+        public int    Channels   { get; set; }
+        public string Label      { get; set; }
+    }
+
+    // -----------------------------------------------------------------------
+    // Main helper - all COM operations happen here, never in PowerShell
+    // -----------------------------------------------------------------------
 
     public static class AudioManagerHelper
     {
-        private static readonly Guid DEVINTERFACE_AUDIO_RENDER  = new Guid("E6327CAD-DCEC-4949-AE8A-991E976A79D2");
-        private static readonly Guid DEVINTERFACE_AUDIO_CAPTURE = new Guid("2EEF81BE-33FA-4800-9670-1CD474972C3F");
+        // GUIDs
+        private static readonly Guid IID_IAudioEndpointVolume  =
+            new Guid("5CDF2C82-841E-4546-9722-0CF74078229A");
+        private static readonly Guid IID_IAudioSessionManager2 =
+            new Guid("77AA99A0-1BD6-484F-8BC7-2C654C9A9B6F");
 
-        public static IMMDeviceEnumerator CreateDeviceEnumerator()
+        // PKEY_Device_FriendlyName
+        private static readonly PropertyKey PKEY_FriendlyName = new PropertyKey
+        {
+            fmtid = new Guid("a45c254e-df1c-4efd-8020-67d146a850e0"),
+            pid   = 14
+        };
+
+        // ---- factory helpers -----------------------------------------------
+
+        private static IMMDeviceEnumerator CreateEnumerator()
         {
             return (IMMDeviceEnumerator)new MMDeviceEnumeratorComObject();
         }
 
-        public static IPolicyConfig CreatePolicyConfig()
+        private static IPolicyConfig CreatePolicyConfig()
         {
             return (IPolicyConfig)new CPolicyConfigClient();
         }
 
-        public static PropertyKey PKEY_Device_FriendlyName()
+        private static IMMDevice GetDeviceById(string deviceId)
         {
-            return new PropertyKey
-            {
-                fmtid = new Guid("a45c254e-df1c-4efd-8020-67d146a850e0"),
-                pid   = 14
-            };
+            IMMDevice dev = null;
+            CreateEnumerator().GetDevice(deviceId, out dev);
+            return dev;
         }
 
-        public static PropertyKey PKEY_AudioEndpoint_Disable_SysFx()
+        private static IAudioEndpointVolume GetEndpointVolume(string deviceId)
         {
-            return new PropertyKey
-            {
-                fmtid = new Guid("1da5d803-d492-4edd-8c23-e0c0ffee7f0e"),
-                pid   = 5
-            };
+            var dev  = GetDeviceById(deviceId);
+            var iid  = IID_IAudioEndpointVolume;
+            object o = null;
+            dev.Activate(ref iid, 23, IntPtr.Zero, out o);
+            return (IAudioEndpointVolume)o;
         }
 
-        public static PropertyKey PKEY_AudioEngine_DeviceFormat()
+        // ---- device enumeration -------------------------------------------
+
+        public static AudioDeviceInfo[] GetRenderDevices()  { return GetDevices(EDataFlow.eRender);  }
+        public static AudioDeviceInfo[] GetCaptureDevices() { return GetDevices(EDataFlow.eCapture); }
+
+        private static AudioDeviceInfo[] GetDevices(EDataFlow flow)
         {
-            return new PropertyKey
+            var list = new List<AudioDeviceInfo>();
+            try
             {
-                fmtid = new Guid("f19f064d-082c-4e27-bc73-6882a1bb8e4c"),
-                pid   = 0
-            };
+                var enumerator = CreateEnumerator();
+                IMMDeviceCollection col = null;
+                enumerator.EnumAudioEndpoints(flow, DeviceState.Active, out col);
+                uint count = 0;
+                col.GetCount(out count);
+
+                for (uint i = 0; i < count; i++)
+                {
+                    IMMDevice dev = null;
+                    col.Item(i, out dev);
+                    try
+                    {
+                        string id = null;
+                        dev.GetId(out id);
+
+                        // Friendly name
+                        IPropertyStore props = null;
+                        dev.OpenPropertyStore(0 /*STGM_READ*/, out props);
+                        var   key = PKEY_FriendlyName;
+                        PropVariant pv;
+                        props.GetValue(ref key, out pv);
+                        string name = pv.GetStringValue();
+                        if (string.IsNullOrEmpty(name)) name = id;
+
+                        // Volume + mute
+                        var iid  = IID_IAudioEndpointVolume;
+                        object o = null;
+                        dev.Activate(ref iid, 23, IntPtr.Zero, out o);
+                        var vol   = (IAudioEndpointVolume)o;
+                        float scalar = 0;
+                        bool  muted  = false;
+                        var   guid   = Guid.Empty;
+                        vol.GetMasterVolumeLevelScalar(out scalar);
+                        vol.GetMute(out muted);
+
+                        list.Add(new AudioDeviceInfo
+                        {
+                            DeviceId     = id,
+                            Name         = name,
+                            VolumeScalar = scalar,
+                            IsMuted      = muted
+                        });
+                    }
+                    catch { /* skip bad device */ }
+                }
+            }
+            catch { }
+            return list.ToArray();
         }
 
-        public static Guid IID_IAudioEndpointVolume   = new Guid("5CDF2C82-841E-4546-9722-0CF74078229A");
-        public static Guid IID_IAudioSessionManager2  = new Guid("77AA99A0-1BD6-484F-8BC7-2C654C9A9B6F");
+        // ---- device volume / mute -----------------------------------------
+
+        public static bool SetDeviceVolume(string deviceId, float level)
+        {
+            try
+            {
+                var  vol  = GetEndpointVolume(deviceId);
+                var  guid = Guid.Empty;
+                vol.SetMasterVolumeLevelScalar(level, ref guid);
+                return true;
+            }
+            catch { return false; }
+        }
+
+        public static bool SetDeviceMute(string deviceId, bool muted)
+        {
+            try
+            {
+                var vol  = GetEndpointVolume(deviceId);
+                var guid = Guid.Empty;
+                vol.SetMute(muted, ref guid);
+                return true;
+            }
+            catch { return false; }
+        }
+
+        // ---- default device -----------------------------------------------
+
+        public static bool SetDefaultDevice(string deviceId)
+        {
+            try
+            {
+                var policy = CreatePolicyConfig();
+                foreach (ERole role in new[] { ERole.eConsole, ERole.eMultimedia, ERole.eCommunications })
+                    policy.SetDefaultEndpoint(deviceId, role);
+                return true;
+            }
+            catch { return false; }
+        }
+
+        // ---- audio sessions -----------------------------------------------
+
+        public static AudioSessionInfo[] GetAudioSessions()
+        {
+            var list = new List<AudioSessionInfo>();
+            try
+            {
+                var enumerator = CreateEnumerator();
+                IMMDevice defaultDev = null;
+                enumerator.GetDefaultAudioEndpoint(EDataFlow.eRender, ERole.eConsole, out defaultDev);
+
+                var  iid2 = IID_IAudioSessionManager2;
+                object o2 = null;
+                defaultDev.Activate(ref iid2, 23, IntPtr.Zero, out o2);
+                var mgr2 = (IAudioSessionManager2)o2;
+
+                IAudioSessionEnumerator sessionEnum = null;
+                mgr2.GetSessionEnumerator(out sessionEnum);
+                int count = 0;
+                sessionEnum.GetCount(out count);
+
+                for (int i = 0; i < count; i++)
+                {
+                    IAudioSessionControl ctrl = null;
+                    sessionEnum.GetSession(i, out ctrl);
+                    try
+                    {
+                        var ctrl2     = (IAudioSessionControl2)ctrl;
+                        var simpleVol = (ISimpleAudioVolume)ctrl;
+
+                        uint pid = 0;
+                        ctrl2.GetProcessId(out pid);
+                        if (pid == 0) continue;
+
+                        string displayName = null;
+                        ctrl2.GetDisplayName(out displayName);
+
+                        if (string.IsNullOrEmpty(displayName))
+                        {
+                            try
+                            {
+                                var proc = Process.GetProcessById((int)pid);
+                                displayName = string.IsNullOrEmpty(proc.MainWindowTitle)
+                                    ? proc.ProcessName
+                                    : proc.MainWindowTitle;
+                            }
+                            catch { displayName = "PID " + pid; }
+                        }
+
+                        float volLevel = 0;
+                        bool  muted    = false;
+                        simpleVol.GetMasterVolume(out volLevel);
+                        simpleVol.GetMute(out muted);
+
+                        AudioSessionState state = AudioSessionState.Inactive;
+                        ctrl.GetState(out state);
+
+                        int pct = (int)Math.Round(volLevel * 100);
+
+                        list.Add(new AudioSessionInfo
+                        {
+                            SessionKey    = pid + "-" + i,
+                            Name          = displayName,
+                            ProcessId     = (int)pid,
+                            PidLabel      = "PID: " + pid,
+                            VolumePercent = pct,
+                            VolumeLabel   = pct + "%",
+                            IsMuted       = muted,
+                            State         = state.ToString(),
+                            Icon          = GetProcessIcon((int)pid)
+                        });
+                    }
+                    catch { /* expired session */ }
+                }
+            }
+            catch { }
+            return list.ToArray();
+        }
+
+        private static string GetProcessIcon(int pid)
+        {
+            var map = new Dictionary<string, string>(StringComparer.OrdinalIgnoreCase)
+            {
+                { "chrome",             "[web]"    },
+                { "firefox",            "[web]"    },
+                { "msedge",             "[web]"    },
+                { "spotify",            "[music]"  },
+                { "discord",            "[chat]"   },
+                { "slack",              "[chat]"   },
+                { "teams",              "[meet]"   },
+                { "zoom",               "[meet]"   },
+                { "vlc",                "[video]"  },
+                { "obs64",              "[stream]" },
+                { "obs32",              "[stream]" },
+                { "steam",              "[game]"   },
+                { "epicgameslauncher",  "[game]"   },
+                { "mpc-hc64",           "[video]"  },
+                { "foobar2000",         "[music]"  },
+                { "itunes",             "[music]"  },
+                { "winamp",             "[music]"  }
+            };
+            try
+            {
+                var proc = Process.GetProcessById(pid);
+                string val;
+                if (map.TryGetValue(proc.ProcessName, out val)) return val;
+            }
+            catch { }
+            return "[audio]";
+        }
+
+        // ---- per-app session volume / mute --------------------------------
+        // Looks up the session by ProcessId each call - reliable and simple.
+
+        public static bool SetSessionVolume(int processId, float level)
+        {
+            return SetSessionParam(processId, level, null);
+        }
+
+        public static bool SetSessionMute(int processId, bool muted)
+        {
+            return SetSessionParam(processId, null, muted);
+        }
+
+        private static bool SetSessionParam(int processId, float? volume, bool? muted)
+        {
+            try
+            {
+                var enumerator = CreateEnumerator();
+                IMMDevice defaultDev = null;
+                enumerator.GetDefaultAudioEndpoint(EDataFlow.eRender, ERole.eConsole, out defaultDev);
+
+                var  iid = IID_IAudioSessionManager2;
+                object o = null;
+                defaultDev.Activate(ref iid, 23, IntPtr.Zero, out o);
+                var mgr2 = (IAudioSessionManager2)o;
+
+                IAudioSessionEnumerator sessionEnum = null;
+                mgr2.GetSessionEnumerator(out sessionEnum);
+                int count = 0;
+                sessionEnum.GetCount(out count);
+
+                for (int i = 0; i < count; i++)
+                {
+                    IAudioSessionControl ctrl = null;
+                    sessionEnum.GetSession(i, out ctrl);
+                    try
+                    {
+                        var ctrl2 = (IAudioSessionControl2)ctrl;
+                        uint pid  = 0;
+                        ctrl2.GetProcessId(out pid);
+                        if ((int)pid != processId) continue;
+
+                        var  sv   = (ISimpleAudioVolume)ctrl;
+                        var  guid = Guid.Empty;
+                        if (volume.HasValue)  sv.SetMasterVolume(volume.Value, ref guid);
+                        if (muted.HasValue)   sv.SetMute(muted.Value, ref guid);
+                        return true;
+                    }
+                    catch { }
+                }
+                return false;
+            }
+            catch { return false; }
+        }
+
+        // ---- device format ------------------------------------------------
+
+        public static DeviceFormatInfo GetDeviceFormat(string deviceId)
+        {
+            try
+            {
+                var policy = CreatePolicyConfig();
+                IntPtr fmtPtr = IntPtr.Zero;
+                policy.GetDeviceFormat(deviceId, false, out fmtPtr);
+                if (fmtPtr == IntPtr.Zero) return null;
+
+                var wfx = Marshal.PtrToStructure<WAVEFORMATEX>(fmtPtr);
+                Marshal.FreeCoTaskMem(fmtPtr);
+
+                return new DeviceFormatInfo
+                {
+                    DeviceId   = deviceId,
+                    SampleRate = (int)wfx.nSamplesPerSec,
+                    BitDepth   = wfx.wBitsPerSample,
+                    Channels   = wfx.nChannels,
+                    Label      = wfx.nSamplesPerSec + " Hz / " + wfx.wBitsPerSample + "-bit / "
+                                 + (wfx.nChannels == 1 ? "Mono" : wfx.nChannels == 2 ? "Stereo"
+                                    : wfx.nChannels + "ch")
+                };
+            }
+            catch { return null; }
+        }
+
+        public static bool SetDeviceFormat(string deviceId, int sampleRate, int bitDepth, int channels)
+        {
+            try
+            {
+                var wfx = new WAVEFORMATEX
+                {
+                    wFormatTag      = 1, // WAVE_FORMAT_PCM
+                    nChannels       = (ushort)channels,
+                    nSamplesPerSec  = (uint)sampleRate,
+                    wBitsPerSample  = (ushort)bitDepth,
+                    nBlockAlign     = (ushort)(channels * bitDepth / 8),
+                    nAvgBytesPerSec = (uint)(sampleRate * channels * bitDepth / 8),
+                    cbSize          = 0
+                };
+
+                // For 24-bit or 32-bit, use WAVE_FORMAT_EXTENSIBLE (0xFFFE)
+                // For 16-bit PCM keep WAVE_FORMAT_PCM (1)
+                IntPtr fmtPtr = Marshal.AllocCoTaskMem(Marshal.SizeOf(wfx));
+                Marshal.StructureToPtr(wfx, fmtPtr, false);
+                var policy = CreatePolicyConfig();
+                policy.SetDeviceFormat(deviceId, fmtPtr, IntPtr.Zero);
+                Marshal.FreeCoTaskMem(fmtPtr);
+                return true;
+            }
+            catch { return false; }
+        }
     }
 }
 
@@ -414,54 +756,8 @@ try {
 function Get-AudioDevices {
     $result = @{ Render = @(); Capture = @() }
     try {
-        $enumerator = [AudioManager.AudioManagerHelper]::CreateDeviceEnumerator()
-        foreach ($flow in @([AudioManager.EDataFlow]::eRender, [AudioManager.EDataFlow]::eCapture)) {
-            $collection = $null
-            $enumerator.EnumAudioEndpoints($flow, [AudioManager.DeviceState]::Active, [ref]$collection) | Out-Null
-            $count = 0
-            $collection.GetCount([ref]$count) | Out-Null
-            $devices = @()
-            for ($i = 0; $i -lt $count; $i++) {
-                $device = $null
-                $collection.Item($i, [ref]$device) | Out-Null
-
-                $id = ""
-                $device.GetId([ref]$id) | Out-Null
-
-                $store = $null
-                $device.OpenPropertyStore(0, [ref]$store) | Out-Null  # STGM_READ = 0
-                $key = [AudioManager.AudioManagerHelper]::PKEY_Device_FriendlyName()
-                $pv  = New-Object AudioManager.PropVariant
-                $store.GetValue([ref]$key, [ref]$pv) | Out-Null
-                $name = $pv.GetStringValue()
-                if ([string]::IsNullOrEmpty($name)) { $name = "Unknown Device" }
-
-                # Get endpoint volume interface
-                $volIid = [AudioManager.AudioManagerHelper]::IID_IAudioEndpointVolume
-                $volObj = $null
-                $device.Activate([ref]$volIid, 23, [IntPtr]::Zero, [ref]$volObj) | Out-Null
-                $vol = [AudioManager.IAudioEndpointVolume]$volObj
-
-                $level = 0.0
-                $vol.GetMasterVolumeLevelScalar([ref]$level) | Out-Null
-                $muted = $false
-                $vol.GetMute([ref]$muted) | Out-Null
-
-                $devices += [PSCustomObject]@{
-                    DeviceId      = $id
-                    Name          = $name
-                    Flow          = $flow
-                    VolumeScalar  = $level
-                    IsMuted       = $muted
-                    VolumeInterface = $vol
-                }
-            }
-            if ($flow -eq [AudioManager.EDataFlow]::eRender) {
-                $result.Render = $devices
-            } else {
-                $result.Capture = $devices
-            }
-        }
+        $result.Render  = [AudioManager.AudioManagerHelper]::GetRenderDevices()
+        $result.Capture = [AudioManager.AudioManagerHelper]::GetCaptureDevices()
     } catch {
         Write-Warning "Get-AudioDevices error: $_"
     }
@@ -510,140 +806,19 @@ function Get-AudioProfiles {
 
 
 function Get-AudioSessions {
-    $sessions = @()
     try {
-        $enumerator = [AudioManager.AudioManagerHelper]::CreateDeviceEnumerator()
-        $defaultDev = $null
-        $enumerator.GetDefaultAudioEndpoint(
-            [AudioManager.EDataFlow]::eRender,
-            [AudioManager.ERole]::eConsole,
-            [ref]$defaultDev
-        ) | Out-Null
-
-        $mgr2Iid = [AudioManager.AudioManagerHelper]::IID_IAudioSessionManager2
-        $mgr2Obj = $null
-        $defaultDev.Activate([ref]$mgr2Iid, 23, [IntPtr]::Zero, [ref]$mgr2Obj) | Out-Null
-        $mgr2 = [AudioManager.IAudioSessionManager2]$mgr2Obj
-
-        $sessionEnum = $null
-        $mgr2.GetSessionEnumerator([ref]$sessionEnum) | Out-Null
-
-        $count = 0
-        $sessionEnum.GetCount([ref]$count) | Out-Null
-
-        for ($i = 0; $i -lt $count; $i++) {
-            $ctrl = $null
-            $sessionEnum.GetSession($i, [ref]$ctrl) | Out-Null
-
-            try {
-                $ctrl2    = [AudioManager.IAudioSessionControl2]$ctrl
-                $simpleVol = [AudioManager.ISimpleAudioVolume]$ctrl
-
-                $pid = 0
-                $ctrl2.GetProcessId([ref]$pid) | Out-Null
-
-                # Skip the system sounds session (PID 0)
-                if ($pid -eq 0) { continue }
-
-                $displayName = ""
-                $ctrl2.GetDisplayName([ref]$displayName) | Out-Null
-
-                $proc = $null
-                if ([string]::IsNullOrEmpty($displayName)) {
-                    $proc = Get-Process -Id $pid -ErrorAction SilentlyContinue
-                    $displayName = if ($proc -and $proc.MainWindowTitle) {
-                        $proc.MainWindowTitle
-                    } elseif ($proc) {
-                        $proc.ProcessName
-                    } else {
-                        "PID $pid"
-                    }
-                }
-
-                $vol   = 0.0
-                $muted = $false
-                $simpleVol.GetMasterVolume([ref]$vol)   | Out-Null
-                $simpleVol.GetMute([ref]$muted)          | Out-Null
-
-                $state = [AudioManager.AudioSessionState]::Inactive
-                $ctrl.GetState([ref]$state) | Out-Null
-
-                $sessions += [PSCustomObject]@{
-                    SessionKey    = "$pid-$i"
-                    Name          = $displayName
-                    ProcessId     = $pid
-                    PidLabel      = "PID: $pid"
-                    VolumePercent = [math]::Round($vol * 100)
-                    VolumeLabel   = "$([math]::Round($vol * 100))%"
-                    IsMuted       = $muted
-                    State         = $state
-                    Icon          = Get-ProcessIcon -ProcessId $pid
-                    SimpleVolume  = $simpleVol
-                    SessionControl = $ctrl
-                }
-            } catch {
-                # Session may have expired, skip it
-            }
-        }
+        return [AudioManager.AudioManagerHelper]::GetAudioSessions()
     } catch {
         Write-Warning "Get-AudioSessions error: $_"
+        return @()
     }
-    return $sessions
-}
-
-function Get-ProcessIcon {
-    param([uint32]$ProcessId)
-    $map = @{
-        'chrome'            = '[web]'
-        'firefox'           = '[web]'
-        'msedge'            = '[web]'
-        'spotify'           = '[music]'
-        'discord'           = '[chat]'
-        'slack'             = '[chat]'
-        'teams'             = '[meet]'
-        'zoom'              = '[meet]'
-        'vlc'               = '[video]'
-        'obs64'             = '[stream]'
-        'obs32'             = '[stream]'
-        'steam'             = '[game]'
-        'epicgameslauncher' = '[game]'
-        'mpc-hc64'          = '[video]'
-        'foobar2000'        = '[music]'
-        'itunes'            = '[music]'
-        'winamp'            = '[music]'
-    }
-    try {
-        $proc = Get-Process -Id $ProcessId -ErrorAction SilentlyContinue
-        if ($proc) {
-            $key = $proc.ProcessName.ToLower()
-            if ($map.ContainsKey($key)) { return $map[$key] }
-        }
-    } catch {}
-    return '[audio]'
 }
 
 
 function Get-DeviceFormat {
     param([Parameter(Mandatory)][string]$DeviceId)
     try {
-        $policy    = [AudioManager.AudioManagerHelper]::CreatePolicyConfig()
-        $fmtPtr    = [IntPtr]::Zero
-        $policy.GetDeviceFormat($DeviceId, $false, [ref]$fmtPtr) | Out-Null
-
-        if ($fmtPtr -eq [IntPtr]::Zero) { return $null }
-
-        $fmt = [System.Runtime.InteropServices.Marshal]::PtrToStructure(
-            $fmtPtr,
-            [AudioManager.WAVEFORMATEX]
-        )
-
-        return [PSCustomObject]@{
-            SampleRate  = $fmt.nSamplesPerSec
-            BitDepth    = $fmt.wBitsPerSample
-            Channels    = $fmt.nChannels
-            FormatTag   = $fmt.wFormatTag
-            Description = "$($fmt.nSamplesPerSec) Hz / $($fmt.wBitsPerSample)-bit / $($fmt.nChannels)ch"
-        }
+        return [AudioManager.AudioManagerHelper]::GetDeviceFormat($DeviceId)
     } catch {
         Write-Warning "Get-DeviceFormat error: $_"
         return $null
@@ -653,41 +828,19 @@ function Get-DeviceFormat {
 
 function Get-DeviceMute {
     param([Parameter(Mandatory)][string]$DeviceId)
-    try {
-        $enumerator = [AudioManager.AudioManagerHelper]::CreateDeviceEnumerator()
-        $device     = $null
-        $enumerator.GetDevice($DeviceId, [ref]$device) | Out-Null
-        $iid    = [AudioManager.AudioManagerHelper]::IID_IAudioEndpointVolume
-        $volObj = $null
-        $device.Activate([ref]$iid, 23, [IntPtr]::Zero, [ref]$volObj) | Out-Null
-        $vol    = [AudioManager.IAudioEndpointVolume]$volObj
-        $muted  = $false
-        $vol.GetMute([ref]$muted) | Out-Null
-        return $muted
-    } catch {
-        Write-Warning "Get-DeviceMute error: $_"
-        return $false
-    }
+    $devices = [AudioManager.AudioManagerHelper]::GetRenderDevices() +
+               [AudioManager.AudioManagerHelper]::GetCaptureDevices()
+    $dev = $devices | Where-Object { $_.DeviceId -eq $DeviceId } | Select-Object -First 1
+    return if ($dev) { $dev.IsMuted } else { $false }
 }
 
 
 function Get-DeviceVolume {
     param([Parameter(Mandatory)][string]$DeviceId)
-    try {
-        $enumerator = [AudioManager.AudioManagerHelper]::CreateDeviceEnumerator()
-        $device     = $null
-        $enumerator.GetDevice($DeviceId, [ref]$device) | Out-Null
-        $iid    = [AudioManager.AudioManagerHelper]::IID_IAudioEndpointVolume
-        $volObj = $null
-        $device.Activate([ref]$iid, 23, [IntPtr]::Zero, [ref]$volObj) | Out-Null
-        $vol    = [AudioManager.IAudioEndpointVolume]$volObj
-        $level  = 0.0
-        $vol.GetMasterVolumeLevelScalar([ref]$level) | Out-Null
-        return $level
-    } catch {
-        Write-Warning "Get-DeviceVolume error: $_"
-        return 0.0
-    }
+    $devices = [AudioManager.AudioManagerHelper]::GetRenderDevices() +
+               [AudioManager.AudioManagerHelper]::GetCaptureDevices()
+    $dev = $devices | Where-Object { $_.DeviceId -eq $DeviceId } | Select-Object -First 1
+    return if ($dev) { $dev.VolumeScalar } else { 0.0 }
 }
 
 
@@ -841,39 +994,20 @@ function Save-AudioProfile {
 
 function Set-AppMute {
     param(
-        [Parameter(Mandatory)][string]$SessionKey,
+        [Parameter(Mandatory)][int]$ProcessId,
         [Parameter(Mandatory)][bool]$Muted
     )
-    try {
-        $session = $sync.AudioSessions | Where-Object { $_.SessionKey -eq $SessionKey } | Select-Object -First 1
-        if ($session -and $session.SimpleVolume) {
-            $guid = [guid]::Empty
-            $session.SimpleVolume.SetMute($Muted, [ref]$guid) | Out-Null
-            $session.IsMuted = $Muted
-        }
-    } catch {
-        Write-Warning "Set-AppMute error: $_"
-    }
+    return [AudioManager.AudioManagerHelper]::SetSessionMute($ProcessId, $Muted)
 }
 
 
 function Set-AppVolume {
     param(
-        [Parameter(Mandatory)][string]$SessionKey,   # "pid-index"
-        [Parameter(Mandatory)][float]$Level           # 0.0 - 1.0
+        [Parameter(Mandatory)][int]$ProcessId,
+        [Parameter(Mandatory)][float]$Level    # 0.0 - 1.0
     )
-    try {
-        $Level = [math]::Max(0.0, [math]::Min(1.0, $Level))
-        $session = $sync.AudioSessions | Where-Object { $_.SessionKey -eq $SessionKey } | Select-Object -First 1
-        if ($session -and $session.SimpleVolume) {
-            $guid = [guid]::Empty
-            $session.SimpleVolume.SetMasterVolume($Level, [ref]$guid) | Out-Null
-            $session.VolumePercent = [math]::Round($Level * 100)
-            $session.VolumeLabel   = "$($session.VolumePercent)%"
-        }
-    } catch {
-        Write-Warning "Set-AppVolume error: $_"
-    }
+    $Level = [math]::Max(0.0, [math]::Min(1.0, $Level))
+    return [AudioManager.AudioManagerHelper]::SetSessionVolume($ProcessId, $Level)
 }
 
 
@@ -909,52 +1043,19 @@ function Set-AudioEnhancement {
 
 
 function Set-DefaultAudioDevice {
-    param(
-        [Parameter(Mandatory)][string]$DeviceId,
-        [Parameter(Mandatory)][AudioManager.EDataFlow]$Flow
-    )
-    try {
-        $policy = [AudioManager.AudioManagerHelper]::CreatePolicyConfig()
-        # Set for all three roles
-        foreach ($role in @(
-            [AudioManager.ERole]::eConsole,
-            [AudioManager.ERole]::eMultimedia,
-            [AudioManager.ERole]::eCommunications
-        )) {
-            $policy.SetDefaultEndpoint($DeviceId, $role) | Out-Null
-        }
-        return $true
-    } catch {
-        Write-Warning "Set-DefaultAudioDevice error: $_"
-        return $false
-    }
+    param([Parameter(Mandatory)][string]$DeviceId)
+    return [AudioManager.AudioManagerHelper]::SetDefaultDevice($DeviceId)
 }
 
 
 function Set-DeviceFormat {
     param(
         [Parameter(Mandatory)][string]$DeviceId,
-        [Parameter(Mandatory)][uint32]$SampleRate,
-        [Parameter(Mandatory)][uint16]$BitDepth
+        [Parameter(Mandatory)][int]$SampleRate,
+        [Parameter(Mandatory)][int]$BitDepth,
+        [int]$Channels = 2
     )
-    try {
-        $fmt = New-Object AudioManager.WAVEFORMATEX
-        # For PCM (16/24-bit) use format tag 1; for 32-bit float use 3
-        $fmt.wFormatTag      = if ($BitDepth -eq 32) { [uint16]3 } else { [uint16]1 }
-        $fmt.nChannels       = [uint16]2
-        $fmt.nSamplesPerSec  = $SampleRate
-        $fmt.wBitsPerSample  = $BitDepth
-        $fmt.nBlockAlign     = [uint16](($fmt.nChannels * $fmt.wBitsPerSample) / 8)
-        $fmt.nAvgBytesPerSec = $fmt.nSamplesPerSec * $fmt.nBlockAlign
-        $fmt.cbSize          = [uint16]0
-
-        $policy = [AudioManager.AudioManagerHelper]::CreatePolicyConfig()
-        $policy.SetDeviceFormat($DeviceId, [ref]$fmt, [IntPtr]::Zero) | Out-Null
-        return $true
-    } catch {
-        Write-Warning "Set-DeviceFormat error: $_"
-        return $false
-    }
+    return [AudioManager.AudioManagerHelper]::SetDeviceFormat($DeviceId, $SampleRate, $BitDepth, $Channels)
 }
 
 
@@ -963,21 +1064,7 @@ function Set-DeviceMute {
         [Parameter(Mandatory)][string]$DeviceId,
         [Parameter(Mandatory)][bool]$Muted
     )
-    try {
-        $enumerator = [AudioManager.AudioManagerHelper]::CreateDeviceEnumerator()
-        $device     = $null
-        $enumerator.GetDevice($DeviceId, [ref]$device) | Out-Null
-        $iid    = [AudioManager.AudioManagerHelper]::IID_IAudioEndpointVolume
-        $volObj = $null
-        $device.Activate([ref]$iid, 23, [IntPtr]::Zero, [ref]$volObj) | Out-Null
-        $vol    = [AudioManager.IAudioEndpointVolume]$volObj
-        $guid   = [guid]::Empty
-        $vol.SetMute($Muted, [ref]$guid) | Out-Null
-        return $true
-    } catch {
-        Write-Warning "Set-DeviceMute error: $_"
-        return $false
-    }
+    return [AudioManager.AudioManagerHelper]::SetDeviceMute($DeviceId, $Muted)
 }
 
 
@@ -986,37 +1073,130 @@ function Set-DeviceVolume {
         [Parameter(Mandatory)][string]$DeviceId,
         [Parameter(Mandatory)][float]$Level     # 0.0 - 1.0
     )
-    try {
-        $Level = [math]::Max(0.0, [math]::Min(1.0, $Level))
-        $enumerator = [AudioManager.AudioManagerHelper]::CreateDeviceEnumerator()
-        $device     = $null
-        $enumerator.GetDevice($DeviceId, [ref]$device) | Out-Null
-        $iid    = [AudioManager.AudioManagerHelper]::IID_IAudioEndpointVolume
-        $volObj = $null
-        $device.Activate([ref]$iid, 23, [IntPtr]::Zero, [ref]$volObj) | Out-Null
-        $vol    = [AudioManager.IAudioEndpointVolume]$volObj
-        $guid   = [guid]::Empty
-        $vol.SetMasterVolumeLevelScalar($Level, [ref]$guid) | Out-Null
-        return $true
-    } catch {
-        Write-Warning "Set-DeviceVolume error: $_"
-        return $false
-    }
+    $Level = [math]::Max(0.0, [math]::Min(1.0, $Level))
+    return [AudioManager.AudioManagerHelper]::SetDeviceVolume($DeviceId, $Level)
 }
 
 
 function Initialize-ApplicationsTab {
-    $sync.WPFAppSessionList.Items.Clear()
+    $sync.WPFAppSessionList.Children.Clear()
 
-    if ($sync.AudioSessions.Count -eq 0) {
+    $sessions = $sync.AudioSessions
+    if (-not $sessions -or $sessions.Count -eq 0) {
         $sync.WPFAppCount.Text = "No active audio sessions found."
         return
     }
 
-    $sync.WPFAppCount.Text = "$($sync.AudioSessions.Count) session(s)"
+    $sync.WPFAppCount.Text = "$($sessions.Count) session(s)"
 
-    foreach ($session in ($sync.AudioSessions | Sort-Object Name)) {
-        $sync.WPFAppSessionList.Items.Add($session) | Out-Null
+    $bgColor  = [System.Windows.Media.SolidColorBrush][System.Windows.Media.ColorConverter]::ConvertFromString("#16213E")
+    $fgMain   = [System.Windows.Media.SolidColorBrush][System.Windows.Media.ColorConverter]::ConvertFromString("#E0E0E0")
+    $fgMuted  = [System.Windows.Media.SolidColorBrush][System.Windows.Media.ColorConverter]::ConvertFromString("#8892B0")
+
+    foreach ($session in ($sessions | Sort-Object Name)) {
+        # --- outer card border ---
+        $border = [System.Windows.Controls.Border]::new()
+        $border.Background   = $bgColor
+        $border.CornerRadius = [System.Windows.CornerRadius]::new(6)
+        $border.Padding      = [System.Windows.Thickness]::new(12, 8, 12, 8)
+        $border.Margin       = [System.Windows.Thickness]::new(0, 0, 0, 8)
+
+        # --- 5-column grid ---
+        $grid = [System.Windows.Controls.Grid]::new()
+        foreach ($w in @(36, 180, -1, 50, 70)) {
+            $cd = [System.Windows.Controls.ColumnDefinition]::new()
+            $cd.Width = if ($w -lt 0) { [System.Windows.GridLength]::new(1, [System.Windows.GridUnitType]::Star) } `
+                        else           { [System.Windows.GridLength]::new($w) }
+            $grid.ColumnDefinitions.Add($cd)
+        }
+
+        # Col 0: icon
+        $iconTb = [System.Windows.Controls.TextBlock]::new()
+        $iconTb.Text                = $session.Icon
+        $iconTb.FontSize            = 14
+        $iconTb.VerticalAlignment   = "Center"
+        $iconTb.HorizontalAlignment = "Center"
+        [System.Windows.Controls.Grid]::SetColumn($iconTb, 0)
+
+        # Col 1: name + pid
+        $namePanel = [System.Windows.Controls.StackPanel]::new()
+        $namePanel.VerticalAlignment = "Center"
+        $namePanel.Margin = [System.Windows.Thickness]::new(8, 0, 0, 0)
+
+        $nameTb = [System.Windows.Controls.TextBlock]::new()
+        $nameTb.Text            = $session.Name
+        $nameTb.FontWeight      = "SemiBold"
+        $nameTb.Foreground      = $fgMain
+        $nameTb.TextTrimming    = "CharacterEllipsis"
+
+        $pidTb = [System.Windows.Controls.TextBlock]::new()
+        $pidTb.Text       = $session.PidLabel
+        $pidTb.Foreground = $fgMuted
+        $pidTb.FontSize   = 10
+
+        $namePanel.Children.Add($nameTb) | Out-Null
+        $namePanel.Children.Add($pidTb)  | Out-Null
+        [System.Windows.Controls.Grid]::SetColumn($namePanel, 1)
+
+        # Col 2: volume slider
+        $slider = [System.Windows.Controls.Slider]::new()
+        $slider.Minimum           = 0
+        $slider.Maximum           = 100
+        $slider.Value             = $session.VolumePercent
+        $slider.VerticalAlignment = "Center"
+        $slider.Margin            = [System.Windows.Thickness]::new(8, 0, 8, 0)
+        $slider.Tag               = [int]$session.ProcessId
+        [System.Windows.Controls.Grid]::SetColumn($slider, 2)
+
+        # Col 3: volume label (updated live by slider)
+        $volLabel = [System.Windows.Controls.TextBlock]::new()
+        $volLabel.Text                = $session.VolumeLabel
+        $volLabel.Foreground          = $fgMain
+        $volLabel.FontWeight          = "SemiBold"
+        $volLabel.VerticalAlignment   = "Center"
+        $volLabel.HorizontalAlignment = "Center"
+        [System.Windows.Controls.Grid]::SetColumn($volLabel, 3)
+
+        # Col 4: mute toggle
+        $muteBtn = [System.Windows.Controls.Primitives.ToggleButton]::new()
+        $muteBtn.Content          = if ($session.IsMuted) { "[X]" } else { "Mute" }
+        $muteBtn.IsChecked        = $session.IsMuted
+        $muteBtn.VerticalAlignment = "Center"
+        $muteBtn.Tag              = [int]$session.ProcessId
+        $muteBtn.Padding          = [System.Windows.Thickness]::new(8, 4, 8, 4)
+        [System.Windows.Controls.Grid]::SetColumn($muteBtn, 4)
+
+        # --- events ---
+        $capturedLabel = $volLabel
+        $slider.Add_ValueChanged({
+            $capturedLabel.Text = "$([math]::Round($this.Value))%"
+        }.GetNewClosure())
+
+        $slider.Add_PreviewMouseLeftButtonUp({
+            $pid   = [int]$this.Tag
+            $level = [float]($this.Value / 100.0)
+            $sync._tmpPid   = $pid
+            $sync._tmpLevel = $level
+            Invoke-AudioManagerRunspace { Set-AppVolume -ProcessId $sync._tmpPid -Level $sync._tmpLevel }
+        }.GetNewClosure())
+
+        $muteBtn.Add_Click({
+            $pid   = [int]$this.Tag
+            $muted = [bool]$this.IsChecked
+            $this.Content = if ($muted) { "[X]" } else { "Mute" }
+            $sync._tmpPid   = $pid
+            $sync._tmpMuted = $muted
+            Invoke-AudioManagerRunspace { Set-AppMute -ProcessId $sync._tmpPid -Muted $sync._tmpMuted }
+        }.GetNewClosure())
+
+        # --- assemble ---
+        $grid.Children.Add($iconTb)    | Out-Null
+        $grid.Children.Add($namePanel) | Out-Null
+        $grid.Children.Add($slider)    | Out-Null
+        $grid.Children.Add($volLabel)  | Out-Null
+        $grid.Children.Add($muteBtn)   | Out-Null
+        $border.Child = $grid
+        $sync.WPFAppSessionList.Children.Add($border) | Out-Null
     }
 }
 
@@ -1184,11 +1364,12 @@ function Invoke-WPFButton {
             $selected = $sync.WPFOutputDeviceList.SelectedItem
             if (-not $selected) { Set-WPFStatus "Select an output device first."; return }
             $deviceId = $selected.Tag
-            Set-WPFStatus "Setting default output to '$($selected.Content)'..."
+            $devName  = $selected.Content
+            Set-WPFStatus "Setting default output to '$devName'..."
             Invoke-AudioManagerRunspace {
-                $ok = Set-DefaultAudioDevice -DeviceId $deviceId -Flow ([AudioManager.EDataFlow]::eRender)
+                $ok = Set-DefaultAudioDevice -DeviceId $deviceId
                 Invoke-WPFUIThread {
-                    Set-WPFStatus (if ($ok) { "Default output set to '$($selected.Content)'." } else { "Failed to set default output." })
+                    Set-WPFStatus (if ($ok) { "Default output set to '$devName'." } else { "Failed to set default output." })
                 }
             }
         }
@@ -1197,11 +1378,12 @@ function Invoke-WPFButton {
             $selected = $sync.WPFInputDeviceList.SelectedItem
             if (-not $selected) { Set-WPFStatus "Select an input device first."; return }
             $deviceId = $selected.Tag
-            Set-WPFStatus "Setting default input to '$($selected.Content)'..."
+            $devName  = $selected.Content
+            Set-WPFStatus "Setting default input to '$devName'..."
             Invoke-AudioManagerRunspace {
-                $ok = Set-DefaultAudioDevice -DeviceId $deviceId -Flow ([AudioManager.EDataFlow]::eCapture)
+                $ok = Set-DefaultAudioDevice -DeviceId $deviceId
                 Invoke-WPFUIThread {
-                    Set-WPFStatus (if ($ok) { "Default input set to '$($selected.Content)'." } else { "Failed to set default input." })
+                    Set-WPFStatus (if ($ok) { "Default input set to '$devName'." } else { "Failed to set default input." })
                 }
             }
         }
@@ -1764,39 +1946,7 @@ $inputXML = @'
                         </StackPanel>
                     </Border>
                     <ScrollViewer VerticalScrollBarVisibility="Auto" HorizontalScrollBarVisibility="Disabled">
-                        <ItemsControl Name="WPFAppSessionList">
-                            <ItemsControl.ItemTemplate>
-                                <DataTemplate>
-                                    <Border Style="{StaticResource Card}" Margin="0,0,0,8">
-                                        <Grid>
-                                            <Grid.ColumnDefinitions>
-                                                <ColumnDefinition Width="36"/>
-                                                <ColumnDefinition Width="180"/>
-                                                <ColumnDefinition Width="*"/>
-                                                <ColumnDefinition Width="50"/>
-                                                <ColumnDefinition Width="70"/>
-                                            </Grid.ColumnDefinitions>
-                                            <TextBlock Grid.Column="0" Text="{Binding Icon}" FontSize="16"
-                                                       VerticalAlignment="Center" HorizontalAlignment="Center"/>
-                                            <StackPanel Grid.Column="1" VerticalAlignment="Center" Margin="8,0">
-                                                <TextBlock Text="{Binding Name}" FontWeight="SemiBold"
-                                                           Foreground="#E0E0E0" TextTrimming="CharacterEllipsis"/>
-                                                <TextBlock Text="{Binding PidLabel}" Foreground="#8892B0" FontSize="10"/>
-                                            </StackPanel>
-                                            <Slider Grid.Column="2" Value="{Binding VolumePercent, Mode=TwoWay}"
-                                                    Style="{StaticResource AudioSlider}" VerticalAlignment="Center"
-                                                    Tag="{Binding SessionKey}"/>
-                                            <TextBlock Grid.Column="3" Text="{Binding VolumeLabel}"
-                                                       Foreground="#E0E0E0" FontWeight="SemiBold"
-                                                       VerticalAlignment="Center" HorizontalAlignment="Center"/>
-                                            <ToggleButton Grid.Column="4" IsChecked="{Binding IsMuted, Mode=TwoWay}"
-                                                          Style="{StaticResource MuteBtn}" Content="Mute"
-                                                          Tag="{Binding SessionKey}" VerticalAlignment="Center"/>
-                                        </Grid>
-                                    </Border>
-                                </DataTemplate>
-                            </ItemsControl.ItemTemplate>
-                        </ItemsControl>
+                        <StackPanel Name="WPFAppSessionList"/>
                     </ScrollViewer>
                 </DockPanel>
             </TabItem>
