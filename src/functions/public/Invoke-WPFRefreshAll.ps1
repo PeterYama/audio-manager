@@ -19,7 +19,7 @@ function Invoke-WPFRefreshAll {
                 Initialize-ApplicationsTab
                 Initialize-FormatsTab
                 Initialize-ProfilesTab
-                Set-WPFStatus "Ready — $($sync.RenderDevices.Count) output, $($sync.CaptureDevices.Count) input device(s) found."
+                Set-WPFStatus "Ready - $($sync.RenderDevices.Count) output, $($sync.CaptureDevices.Count) input device(s) found."
             }
         } catch {
             Invoke-WPFUIThread { Set-WPFStatus "Refresh error: $_" }

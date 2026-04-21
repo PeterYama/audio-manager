@@ -1,7 +1,7 @@
 function Set-AppVolume {
     param(
         [Parameter(Mandatory)][string]$SessionKey,   # "pid-index"
-        [Parameter(Mandatory)][float]$Level           # 0.0 – 1.0
+        [Parameter(Mandatory)][float]$Level           # 0.0 - 1.0
     )
     try {
         $Level = [math]::Max(0.0, [math]::Min(1.0, $Level))

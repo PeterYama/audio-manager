@@ -1,11 +1,11 @@
 #Requires -Version 5.1
-# â•”â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•—
-# â•‘           Audio Manager v26.04.20 â€” by PeterYama                â•‘
-# â•‘   iwr -useb https://raw.githubusercontent.com/PeterYama/        â•‘
-# â•‘       audio-manager/main/AudioManager.ps1 | iex                 â•‘
-# â•‘   https://github.com/PeterYama/audio-manager                    â•‘
-# â•šâ•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•
-$script:AMVersion = "26.04.20"
+# ==================================================================
+# Audio Manager v26.04.21 - by PeterYama
+# iwr -useb https://raw.githubusercontent.com/PeterYama/
+#     audio-manager/master/AudioManager.ps1 | iex
+# https://github.com/PeterYama/audio-manager
+# ==================================================================
+$script:AMVersion = "26.04.21"
 
 # --- Elevation check ---
 
@@ -478,7 +478,7 @@ function Get-AudioDevices {
 
 function Get-AudioEnhancement {
     param([Parameter(Mandatory)][string]$DeviceId)
-    # DeviceId format: {0.0.0.00000000}.{GUID}  — extract the GUID portion
+    # DeviceId format: {0.0.0.00000000}.{GUID}  - extract the GUID portion
     $guidPart = ($DeviceId -split '\.')[-1].Trim('{', '}')
     $regPath  = "HKLM:\SOFTWARE\Microsoft\Windows\CurrentVersion\MMDevices\Audio\Render\{$guidPart}\FxProperties"
 
@@ -867,7 +867,7 @@ function Set-AppMute {
 function Set-AppVolume {
     param(
         [Parameter(Mandatory)][string]$SessionKey,   # "pid-index"
-        [Parameter(Mandatory)][float]$Level           # 0.0 – 1.0
+        [Parameter(Mandatory)][float]$Level           # 0.0 - 1.0
     )
     try {
         $Level = [math]::Max(0.0, [math]::Min(1.0, $Level))
@@ -991,7 +991,7 @@ function Set-DeviceMute {
 function Set-DeviceVolume {
     param(
         [Parameter(Mandatory)][string]$DeviceId,
-        [Parameter(Mandatory)][float]$Level     # 0.0 – 1.0
+        [Parameter(Mandatory)][float]$Level     # 0.0 - 1.0
     )
     try {
         $Level = [math]::Max(0.0, [math]::Min(1.0, $Level))
@@ -1313,7 +1313,7 @@ function Invoke-WPFRefreshAll {
                 Initialize-ApplicationsTab
                 Initialize-FormatsTab
                 Initialize-ProfilesTab
-                Set-WPFStatus "Ready — $($sync.RenderDevices.Count) output, $($sync.CaptureDevices.Count) input device(s) found."
+                Set-WPFStatus "Ready - $($sync.RenderDevices.Count) output, $($sync.CaptureDevices.Count) input device(s) found."
             }
         } catch {
             Invoke-WPFUIThread { Set-WPFStatus "Refresh error: $_" }

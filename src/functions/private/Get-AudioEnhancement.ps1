@@ -1,6 +1,6 @@
 function Get-AudioEnhancement {
     param([Parameter(Mandatory)][string]$DeviceId)
-    # DeviceId format: {0.0.0.00000000}.{GUID}  — extract the GUID portion
+    # DeviceId format: {0.0.0.00000000}.{GUID}  - extract the GUID portion
     $guidPart = ($DeviceId -split '\.')[-1].Trim('{', '}')
     $regPath  = "HKLM:\SOFTWARE\Microsoft\Windows\CurrentVersion\MMDevices\Audio\Render\{$guidPart}\FxProperties"
 

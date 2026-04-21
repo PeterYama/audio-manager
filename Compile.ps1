@@ -44,12 +44,12 @@ function AppendFile {
 
 Append @"
 #Requires -Version 5.1
-# ╔══════════════════════════════════════════════════════════════════╗
-# ║           Audio Manager v$version — by PeterYama                ║
-# ║   iwr -useb https://raw.githubusercontent.com/PeterYama/        ║
-# ║       audio-manager/main/AudioManager.ps1 | iex                 ║
-# ║   https://github.com/PeterYama/audio-manager                    ║
-# ╚══════════════════════════════════════════════════════════════════╝
+# ==================================================================
+# Audio Manager v$version - by PeterYama
+# iwr -useb https://raw.githubusercontent.com/PeterYama/
+#     audio-manager/master/AudioManager.ps1 | iex
+# https://github.com/PeterYama/audio-manager
+# ==================================================================
 "@
 
 # ─── 2. start.ps1 (with version injected) ─────────────────────────────────────
