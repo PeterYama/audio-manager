@@ -74,6 +74,7 @@ using System;
 using System.Collections.Generic;
 using System.Diagnostics;
 using System.Runtime.InteropServices;
+using System.Threading;
 
 namespace AudioManager
 {
@@ -390,6 +391,31 @@ namespace AudioManager
             pid   = 14
         };
 
+        // ---- STA thread wrapper -------------------------------------------
+        // All IMMDeviceEnumerator / IPolicyConfig COM objects require an STA
+        // apartment.  PowerShell runspaces default to MTA, so every public
+        // entry-point marshals its work onto a fresh STA thread and returns
+        // plain .NET POD objects that cross apartment boundaries freely.
+
+        private static T RunOnSTA<T>(Func<T> work)
+        {
+            T result = default(T);
+            Exception caught = null;
+            var thread = new Thread(() =>
+            {
+                try   { result = work(); }
+                catch (Exception ex) { caught = ex; }
+            });
+            thread.SetApartmentState(ApartmentState.STA);
+            thread.IsBackground = true;
+            thread.Start();
+            thread.Join();
+            if (caught != null) throw new Exception(caught.Message, caught);
+            return result;
+        }
+
+        private static bool RunOnSTA(Func<bool> work) { return RunOnSTA<bool>(work); }
+
         // ---- factory helpers -----------------------------------------------
 
         private static IMMDeviceEnumerator CreateEnumerator()
@@ -420,8 +446,8 @@ namespace AudioManager
 
         // ---- device enumeration -------------------------------------------
 
-        public static AudioDeviceInfo[] GetRenderDevices()  { return GetDevices(EDataFlow.eRender);  }
-        public static AudioDeviceInfo[] GetCaptureDevices() { return GetDevices(EDataFlow.eCapture); }
+        public static AudioDeviceInfo[] GetRenderDevices()  { return RunOnSTA(() => GetDevices(EDataFlow.eRender));  }
+        public static AudioDeviceInfo[] GetCaptureDevices() { return RunOnSTA(() => GetDevices(EDataFlow.eCapture)); }
 
         private static AudioDeviceInfo[] GetDevices(EDataFlow flow)
         {
@@ -482,45 +508,56 @@ namespace AudioManager
 
         public static bool SetDeviceVolume(string deviceId, float level)
         {
-            try
-            {
-                var  vol  = GetEndpointVolume(deviceId);
-                var  guid = Guid.Empty;
-                vol.SetMasterVolumeLevelScalar(level, ref guid);
-                return true;
-            }
-            catch { return false; }
+            return RunOnSTA(() => {
+                try
+                {
+                    var  vol  = GetEndpointVolume(deviceId);
+                    var  guid = Guid.Empty;
+                    vol.SetMasterVolumeLevelScalar(level, ref guid);
+                    return true;
+                }
+                catch { return false; }
+            });
         }
 
         public static bool SetDeviceMute(string deviceId, bool muted)
         {
-            try
-            {
-                var vol  = GetEndpointVolume(deviceId);
-                var guid = Guid.Empty;
-                vol.SetMute(muted, ref guid);
-                return true;
-            }
-            catch { return false; }
+            return RunOnSTA(() => {
+                try
+                {
+                    var vol  = GetEndpointVolume(deviceId);
+                    var guid = Guid.Empty;
+                    vol.SetMute(muted, ref guid);
+                    return true;
+                }
+                catch { return false; }
+            });
         }
 
         // ---- default device -----------------------------------------------
 
         public static bool SetDefaultDevice(string deviceId)
         {
-            try
-            {
-                var policy = CreatePolicyConfig();
-                foreach (ERole role in new[] { ERole.eConsole, ERole.eMultimedia, ERole.eCommunications })
-                    policy.SetDefaultEndpoint(deviceId, role);
-                return true;
-            }
-            catch { return false; }
+            return RunOnSTA(() => {
+                try
+                {
+                    var policy = CreatePolicyConfig();
+                    foreach (ERole role in new[] { ERole.eConsole, ERole.eMultimedia, ERole.eCommunications })
+                        policy.SetDefaultEndpoint(deviceId, role);
+                    return true;
+                }
+                catch { return false; }
+            });
         }
 
         // ---- audio sessions -----------------------------------------------
 
         public static AudioSessionInfo[] GetAudioSessions()
+        {
+            return RunOnSTA(() => GetAudioSessionsCore());
+        }
+
+        private static AudioSessionInfo[] GetAudioSessionsCore()
         {
             var list = new List<AudioSessionInfo>();
             try
@@ -634,12 +671,12 @@ namespace AudioManager
 
         public static bool SetSessionVolume(int processId, float level)
         {
-            return SetSessionParam(processId, level, null);
+            return RunOnSTA(() => SetSessionParam(processId, level, null));
         }
 
         public static bool SetSessionMute(int processId, bool muted)
         {
-            return SetSessionParam(processId, null, muted);
+            return RunOnSTA(() => SetSessionParam(processId, null, muted));
         }
 
         private static bool SetSessionParam(int processId, float? volume, bool? muted)
@@ -688,55 +725,59 @@ namespace AudioManager
 
         public static DeviceFormatInfo GetDeviceFormat(string deviceId)
         {
-            try
-            {
-                var policy = CreatePolicyConfig();
-                IntPtr fmtPtr = IntPtr.Zero;
-                policy.GetDeviceFormat(deviceId, false, out fmtPtr);
-                if (fmtPtr == IntPtr.Zero) return null;
-
-                var wfx = Marshal.PtrToStructure<WAVEFORMATEX>(fmtPtr);
-                Marshal.FreeCoTaskMem(fmtPtr);
-
-                return new DeviceFormatInfo
+            return RunOnSTA<DeviceFormatInfo>(() => {
+                try
                 {
-                    DeviceId   = deviceId,
-                    SampleRate = (int)wfx.nSamplesPerSec,
-                    BitDepth   = wfx.wBitsPerSample,
-                    Channels   = wfx.nChannels,
-                    Label      = wfx.nSamplesPerSec + " Hz / " + wfx.wBitsPerSample + "-bit / "
-                                 + (wfx.nChannels == 1 ? "Mono" : wfx.nChannels == 2 ? "Stereo"
-                                    : wfx.nChannels + "ch")
-                };
-            }
-            catch { return null; }
+                    var policy = CreatePolicyConfig();
+                    IntPtr fmtPtr = IntPtr.Zero;
+                    policy.GetDeviceFormat(deviceId, false, out fmtPtr);
+                    if (fmtPtr == IntPtr.Zero) return null;
+
+                    var wfx = Marshal.PtrToStructure<WAVEFORMATEX>(fmtPtr);
+                    Marshal.FreeCoTaskMem(fmtPtr);
+
+                    return new DeviceFormatInfo
+                    {
+                        DeviceId   = deviceId,
+                        SampleRate = (int)wfx.nSamplesPerSec,
+                        BitDepth   = wfx.wBitsPerSample,
+                        Channels   = wfx.nChannels,
+                        Label      = wfx.nSamplesPerSec + " Hz / " + wfx.wBitsPerSample + "-bit / "
+                                     + (wfx.nChannels == 1 ? "Mono" : wfx.nChannels == 2 ? "Stereo"
+                                        : wfx.nChannels + "ch")
+                    };
+                }
+                catch { return null; }
+            });
         }
 
         public static bool SetDeviceFormat(string deviceId, int sampleRate, int bitDepth, int channels)
         {
-            try
-            {
-                var wfx = new WAVEFORMATEX
+            return RunOnSTA(() => {
+                try
                 {
-                    wFormatTag      = 1, // WAVE_FORMAT_PCM
-                    nChannels       = (ushort)channels,
-                    nSamplesPerSec  = (uint)sampleRate,
-                    wBitsPerSample  = (ushort)bitDepth,
-                    nBlockAlign     = (ushort)(channels * bitDepth / 8),
-                    nAvgBytesPerSec = (uint)(sampleRate * channels * bitDepth / 8),
-                    cbSize          = 0
-                };
+                    var wfx = new WAVEFORMATEX
+                    {
+                        wFormatTag      = 1, // WAVE_FORMAT_PCM
+                        nChannels       = (ushort)channels,
+                        nSamplesPerSec  = (uint)sampleRate,
+                        wBitsPerSample  = (ushort)bitDepth,
+                        nBlockAlign     = (ushort)(channels * bitDepth / 8),
+                        nAvgBytesPerSec = (uint)(sampleRate * channels * bitDepth / 8),
+                        cbSize          = 0
+                    };
 
-                // For 24-bit or 32-bit, use WAVE_FORMAT_EXTENSIBLE (0xFFFE)
-                // For 16-bit PCM keep WAVE_FORMAT_PCM (1)
-                IntPtr fmtPtr = Marshal.AllocCoTaskMem(Marshal.SizeOf(wfx));
-                Marshal.StructureToPtr(wfx, fmtPtr, false);
-                var policy = CreatePolicyConfig();
-                policy.SetDeviceFormat(deviceId, fmtPtr, IntPtr.Zero);
-                Marshal.FreeCoTaskMem(fmtPtr);
-                return true;
-            }
-            catch { return false; }
+                    // For 24-bit or 32-bit, use WAVE_FORMAT_EXTENSIBLE (0xFFFE)
+                    // For 16-bit PCM keep WAVE_FORMAT_PCM (1)
+                    IntPtr fmtPtr = Marshal.AllocCoTaskMem(Marshal.SizeOf(wfx));
+                    Marshal.StructureToPtr(wfx, fmtPtr, false);
+                    var policy = CreatePolicyConfig();
+                    policy.SetDeviceFormat(deviceId, fmtPtr, IntPtr.Zero);
+                    Marshal.FreeCoTaskMem(fmtPtr);
+                    return true;
+                }
+                catch { return false; }
+            });
         }
     }
 }
