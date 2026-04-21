@@ -150,21 +150,31 @@ namespace AudioManager
     // COM Interfaces  (internal - never exposed directly to PowerShell)
     // -----------------------------------------------------------------------
 
+    // IMMDeviceEnumerator -- EnumAudioEndpoints returns IntPtr because the
+    // IMMDeviceCollection COM object does not respond to QI for its own IID
+    // when accessed from managed code; we use raw vtable dispatch instead.
     [Guid("A95664D2-9614-4F35-A746-DE8DB63617E6")]
     [InterfaceType(ComInterfaceType.InterfaceIsIUnknown)]
     [ComImport]
     internal interface IMMDeviceEnumerator
     {
+        [PreserveSig]
         int EnumAudioEndpoints([In] EDataFlow flow, [In] DeviceState mask,
-                               [Out] out IMMDeviceCollection devices);
+                               [Out] out IntPtr ppDevices);
+        [PreserveSig]
         int GetDefaultAudioEndpoint([In] EDataFlow flow, [In] ERole role,
                                     [Out] out IMMDevice endpoint);
+        [PreserveSig]
         int GetDevice([In, MarshalAs(UnmanagedType.LPWStr)] string id,
                       [Out] out IMMDevice device);
-        int RegisterEndpointNotificationCallback(IntPtr client);
-        int UnregisterEndpointNotificationCallback(IntPtr client);
+        [PreserveSig] int RegisterEndpointNotificationCallback(IntPtr client);
+        [PreserveSig] int UnregisterEndpointNotificationCallback(IntPtr client);
     }
 
+    // IMMDeviceCollection is not used as a managed interface type -- QI for
+    // its IID fails at runtime.  All collection access goes through the raw
+    // vtable delegates defined in AudioManagerHelper.
+    // (keeping the declaration here for documentation only -- it is not used)
     [Guid("0BD7A1BE-7A1A-44DB-8397-BE5155E7F6E1")]
     [InterfaceType(ComInterfaceType.InterfaceIsIUnknown)]
     [ComImport]
@@ -416,6 +426,63 @@ namespace AudioManager
 
         private static bool RunOnSTA(Func<bool> work) { return RunOnSTA<bool>(work); }
 
+        // ---- IMMDeviceCollection raw vtable delegates ---------------------
+        // QI for IMMDeviceCollection fails at runtime (E_NOINTERFACE) even
+        // though the pointer is valid.  We call GetCount / Item directly via
+        // the vtable to avoid QI entirely.
+        // IMMDeviceCollection vtable layout (inherits IUnknown):
+        //   slot 0  QueryInterface
+        //   slot 1  AddRef
+        //   slot 2  Release
+        //   slot 3  GetCount  (IMMDeviceCollection::GetCount)
+        //   slot 4  Item      (IMMDeviceCollection::Item)
+
+        [UnmanagedFunctionPointer(CallingConvention.StdCall)]
+        private delegate int CollGetCountDelegate(IntPtr pThis, out uint count);
+
+        [UnmanagedFunctionPointer(CallingConvention.StdCall)]
+        private delegate int CollItemDelegate(IntPtr pThis, uint index, out IntPtr ppDevice);
+
+        // IMMDevice vtable layout (inherits IUnknown):
+        //   slot 0  QueryInterface
+        //   slot 1  AddRef
+        //   slot 2  Release
+        //   slot 3  Activate
+        //   slot 4  OpenPropertyStore
+        //   slot 5  GetId
+        //   slot 6  GetState
+
+        [UnmanagedFunctionPointer(CallingConvention.StdCall)]
+        private delegate int DevGetIdDelegate(IntPtr pThis,
+            [MarshalAs(UnmanagedType.LPWStr)] out string id);
+
+        private static uint CollGetCount(IntPtr col)
+        {
+            IntPtr vtbl = Marshal.ReadIntPtr(col);
+            IntPtr fn   = Marshal.ReadIntPtr(vtbl, 3 * IntPtr.Size);
+            uint count  = 0;
+            ((CollGetCountDelegate)Marshal.GetDelegateForFunctionPointer(fn, typeof(CollGetCountDelegate)))(col, out count);
+            return count;
+        }
+
+        private static IntPtr CollItem(IntPtr col, uint i)
+        {
+            IntPtr vtbl  = Marshal.ReadIntPtr(col);
+            IntPtr fn    = Marshal.ReadIntPtr(vtbl, 4 * IntPtr.Size);
+            IntPtr devPtr = IntPtr.Zero;
+            ((CollItemDelegate)Marshal.GetDelegateForFunctionPointer(fn, typeof(CollItemDelegate)))(col, i, out devPtr);
+            return devPtr;
+        }
+
+        private static string DevGetIdRaw(IntPtr dev)
+        {
+            IntPtr vtbl = Marshal.ReadIntPtr(dev);
+            IntPtr fn   = Marshal.ReadIntPtr(vtbl, 5 * IntPtr.Size);
+            string id   = null;
+            ((DevGetIdDelegate)Marshal.GetDelegateForFunctionPointer(fn, typeof(DevGetIdDelegate)))(dev, out id);
+            return id;
+        }
+
         // ---- factory helpers -----------------------------------------------
 
         private static IMMDeviceEnumerator CreateEnumerator()
@@ -455,37 +522,47 @@ namespace AudioManager
             try
             {
                 var enumerator = CreateEnumerator();
-                IMMDeviceCollection col = null;
-                enumerator.EnumAudioEndpoints(flow, DeviceState.Active, out col);
-                uint count = 0;
-                col.GetCount(out count);
+
+                // EnumAudioEndpoints is declared with out IntPtr because
+                // IMMDeviceCollection doesn't respond to QI from managed code.
+                IntPtr colPtr = IntPtr.Zero;
+                int hr = enumerator.EnumAudioEndpoints(flow, DeviceState.Active, out colPtr);
+                if (hr != 0 || colPtr == IntPtr.Zero) return list.ToArray();
+
+                uint count = CollGetCount(colPtr);
 
                 for (uint i = 0; i < count; i++)
                 {
-                    IMMDevice dev = null;
-                    col.Item(i, out dev);
+                    IntPtr devPtr = CollItem(colPtr, i);
+                    if (devPtr == IntPtr.Zero) continue;
                     try
                     {
-                        string id = null;
-                        dev.GetId(out id);
+                        // Read the device ID via vtable (no QI needed)
+                        string id = DevGetIdRaw(devPtr);
+                        if (string.IsNullOrEmpty(id)) continue;
+
+                        // Re-fetch through GetDevice so we have a proper
+                        // typed IMMDevice for Activate / OpenPropertyStore
+                        IMMDevice dev = null;
+                        enumerator.GetDevice(id, out dev);
+                        if (dev == null) continue;
 
                         // Friendly name
                         IPropertyStore props = null;
                         dev.OpenPropertyStore(0 /*STGM_READ*/, out props);
-                        var   key = PKEY_FriendlyName;
+                        var        key = PKEY_FriendlyName;
                         PropVariant pv;
                         props.GetValue(ref key, out pv);
                         string name = pv.GetStringValue();
                         if (string.IsNullOrEmpty(name)) name = id;
 
                         // Volume + mute
-                        var iid  = IID_IAudioEndpointVolume;
-                        object o = null;
+                        var    iid    = IID_IAudioEndpointVolume;
+                        object o      = null;
                         dev.Activate(ref iid, 23, IntPtr.Zero, out o);
-                        var vol   = (IAudioEndpointVolume)o;
-                        float scalar = 0;
-                        bool  muted  = false;
-                        var   guid   = Guid.Empty;
+                        var   vol     = (IAudioEndpointVolume)o;
+                        float scalar  = 0;
+                        bool  muted   = false;
                         vol.GetMasterVolumeLevelScalar(out scalar);
                         vol.GetMute(out muted);
 
