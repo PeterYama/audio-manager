@@ -60,11 +60,4 @@ $sync = [hashtable]::Synchronized(@{
     NullGuid          = [guid]::Empty
 })
 
-# --- Runspace pool ---
-
-$sessionState = [System.Management.Automation.Runspaces.InitialSessionState]::CreateDefault()
-$sessionState.Variables.Add(
-    [System.Management.Automation.Runspaces.SessionStateVariableEntry]::new('sync', $sync, '')
-)
-$sync.RunspacePool = [runspacefactory]::CreateRunspacePool(1, [Environment]::ProcessorCount, $sessionState, $Host)
-$sync.RunspacePool.Open()
+# RunspacePool is created in main.ps1 after all functions are defined.

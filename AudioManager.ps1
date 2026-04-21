@@ -67,14 +67,7 @@ $sync = [hashtable]::Synchronized(@{
     NullGuid          = [guid]::Empty
 })
 
-# --- Runspace pool ---
-
-$sessionState = [System.Management.Automation.Runspaces.InitialSessionState]::CreateDefault()
-$sessionState.Variables.Add(
-    [System.Management.Automation.Runspaces.SessionStateVariableEntry]::new('sync', $sync, '')
-)
-$sync.RunspacePool = [runspacefactory]::CreateRunspacePool(1, [Environment]::ProcessorCount, $sessionState, $Host)
-$sync.RunspacePool.Open()
+# RunspacePool is created in main.ps1 after all functions are defined.
 
 $script:CoreAudioCSharp = @'
 using System;
@@ -1974,6 +1967,28 @@ $xaml.SelectNodes("//*[@Name]") | ForEach-Object {
         if ($ctrl) { $sync[$ctrlName] = $ctrl }
     }
 }
+
+# Build runspace pool here (after all private/public functions are defined)
+# so worker threads have every function available.
+# Add-Type (CoreAudio) loads into the .NET AppDomain shared by all runspaces,
+# so the C# types are automatically accessible without re-registering them.
+
+$_iss = [System.Management.Automation.Runspaces.InitialSessionState]::CreateDefault()
+$_iss.Variables.Add(
+    [System.Management.Automation.Runspaces.SessionStateVariableEntry]::new('sync', $sync, '')
+)
+
+Get-Command -CommandType Function | Where-Object { $null -eq $_.Module } | ForEach-Object {
+    try {
+        $entry = [System.Management.Automation.Runspaces.SessionStateFunctionEntry]::new(
+            $_.Name, $_.ScriptBlock.ToString()
+        )
+        $_iss.Commands.Add($entry)
+    } catch {}
+}
+
+$sync.RunspacePool = [runspacefactory]::CreateRunspacePool(1, [Environment]::ProcessorCount, $_iss, $Host)
+$sync.RunspacePool.Open()
 
 # Version label
 
